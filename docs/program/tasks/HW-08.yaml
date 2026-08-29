@@ -1,0 +1,403 @@
+schemaVersion: hospital-workspace.phase.v1
+program: hospital-workspace
+targetRepository: peterkis/hospital-workspace
+legacySource:
+  mode: optional-local
+  required: false
+  absencePolicy: reimplement-from-target-contracts
+  configPath: config/local/legacy-source.yaml
+referenceSource:
+  repository: HirezmingD/Knowe-agent-groupchat
+  commit: 1e584f84734e9db55515ef4391fcb9e9c40399cd
+id: HW-08
+title: 临床交班与声明式轻应用
+goal: 迁移交班为高敏感、多字段、版本化工作项，并建立不执行远程 JavaScript 的 Schema App DSL，承载通知确认、巡检、值班登记等轻量需求。
+dependsOn:
+- HW-05
+- HW-07
+deliverables:
+- '`services/handover` 与 `handover-contracts`'
+- 交班 Workspace Capability
+- '`schema-app-contracts` 与白名单 Renderer'
+- 签名/版本化 Schema App Release
+- 至少一个 synthetic 轻应用
+- 临床隐私和并发编辑 Gate
+outOfScope:
+- 低代码可视化编辑器
+- 服务端下发任意 JS/CSS/HTML
+- 病历编辑或医嘱执行
+- 所有旧小程序一次迁移
+acceptance:
+- 交班正文按科室/角色/Scope 保护并有版本历史
+- 并发修订和确认可审计
+- Schema DSL 无任意 JS/HTML/URL 执行能力
+- Schema App release 签名、哈希、版本和回滚通过
+- 至少一个 synthetic 轻应用完整运行
+gates:
+- G08-1 交班领域与临床隐私
+- G08-2 并发编辑/确认/版本
+- G08-3 Schema DSL 安全
+- G08-4 签名发布与回滚
+- G08-5 轻应用不绕过领域服务
+tasks:
+- id: HW08-01
+  title: 定义 Handover Contracts 与敏感度模型
+  primary_owner: terra_contracts
+  supporting_agents:
+  - luna_fixtures
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: A
+  risk: critical
+  depends_on: []
+  allowed_paths:
+  - packages/handover-contracts/**
+  - packages/card-protocol/**
+  - packages/hub-contracts/**
+  objective: 定义班次、科室、交班条目、风险等级、确认、修订、版本和最小通知投影。
+  steps:
+  - 区分 shift/session/item/acknowledgement/revision。
+  - ContextRef 可引用患者/床位/事件，但正文默认高敏感。
+  - 通知只显示“有交班待处理”，不含患者姓名/诊断。
+  - 定义并发修订、过期班次和撤回规则。
+  validation:
+  - contract/state tests
+  - redaction
+  - version conflict
+  acceptance:
+  - 临床正文不会进入 Hub 通用摘要
+  - 确认与修订可审计
+  evidence:
+  - handover-contract-snapshot.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW08-02
+  title: 实现 Handover Service
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_worker
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: B
+  risk: critical
+  depends_on:
+  - HW08-01
+  allowed_paths:
+  - services/handover/**
+  - database/prisma/models/handover.prisma
+  objective: 实现独立交班服务、版本控制、权限/Scope、Outbox 和审计。
+  steps:
+  - 新建 handover schema/migration，不复制 legacy migration。
+  - 按科室/班次/角色验证读取和确认。
+  - 修订使用 expectedVersion，保留历史版本。
+  - 正文加密/数据库 TLS/日志脱敏策略明确。
+  - 锁屏/换人后客户端不得保留正文。
+  validation:
+  - service integration
+  - scope matrix
+  - concurrent edit
+  - history/audit
+  - rebuild
+  acceptance:
+  - 无越权跨科室读取
+  - 历史修订不可覆盖
+  evidence:
+  - handover-service-report.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW08-03
+  title: 实现 Handover WorkItem 与 Workspace Capability
+  primary_owner: terra_worker
+  supporting_agents:
+  - terra_browser
+  - terra_tester
+  execution_mode: workspace-write
+  parallel_group: C
+  risk: high
+  depends_on:
+  - HW08-02
+  allowed_paths:
+  - services/collaboration/src/mappings/handover/**
+  - apps/workspace-web/src/capabilities/handover/**
+  objective: 按班次和科室形成空间/线程/工作项，详情在受控 Canvas 中处理。
+  steps:
+  - 交班待确认产生 Todo，确认/过期关闭。
+  - 线程展示版本、作者、确认、修订和系统事件。
+  - 正文只在详情 Canvas 加载，不进入通用 timeline summary。
+  - 切换线程/锁屏主动清除敏感缓存。
+  validation:
+  - projection replay
+  - UI privacy
+  - switch-person
+  - concurrent conflict
+  acceptance:
+  - 护士/医生可完成班次交接
+  - 敏感正文最小驻留
+  evidence:
+  - handover-capability-evidence.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW08-04
+  title: 定义 Schema App DSL v1
+  primary_owner: terra_contracts
+  supporting_agents:
+  - luna_fixtures
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: A
+  risk: high
+  depends_on: []
+  allowed_paths:
+  - packages/schema-app-contracts/**
+  objective: 建立声明式 Form/List/Table/Timeline/Detail/Approval 轻应用协议，禁止任意代码和任意 endpoint。
+  steps:
+  - 组件、字段、验证、数据源和动作均使用白名单 ID。
+  - Action 只能映射 Capability Registry 注册的 command。
+  - 禁止 raw HTML、eval、new Function、remote module、inline script/style。
+  - 定义 sensitivity、permission、scope、minRuntime、schemaVersion。
+  - 提供 XSS/URL/oversize/fuzz fixtures。
+  validation:
+  - schema fuzz
+  - XSS fixtures
+  - unknown component/action
+  - arbitrary URL
+  acceptance:
+  - DSL 无法表达任意代码执行
+  - 未知内容 fail-closed
+  evidence:
+  - schema-app-v1.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW08-05
+  title: 实现 Schema Renderer 与 Data Binding
+  primary_owner: terra_worker
+  supporting_agents:
+  - terra_tester
+  - terra_browser
+  execution_mode: workspace-write
+  parallel_group: D
+  risk: high
+  depends_on:
+  - HW08-04
+  - HW05-05
+  allowed_paths:
+  - apps/workspace-web/src/schema-runtime/**
+  - packages/ui/**
+  - packages/capability-sdk/**
+  objective: 渲染经验证 Schema，并通过受控 API/Command Dispatcher 加载数据和执行动作。
+  steps:
+  - Renderer 只消费解析后的 typed schema。
+  - 统一 loading/error/empty/permission/validation。
+  - 数据源只引用 Registry 名称，不接受 URL。
+  - 字段敏感度控制显示、缓存和日志。
+  - 未知组件显示不可操作错误，不猜测。
+  validation:
+  - component matrix
+  - CSP/XSS
+  - permission
+  - unknown schema
+  - a11y
+  acceptance:
+  - 无 direct arbitrary fetch
+  - Schema App 与内置 Capability 共享身份/事件/卡片体验
+  evidence:
+  - schema-renderer-report.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW08-06
+  title: 实现 Schema App 签名发布与回滚
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_worker
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: E
+  risk: critical
+  depends_on:
+  - HW08-04
+  - HW02-06
+  allowed_paths:
+  - services/gateway/src/registry/schema-apps/**
+  - database/prisma/models/config.prisma
+  - scripts/release/schema-apps/**
+  objective: 只有经审批、哈希和签名的 immutable Schema App release 才能进入 Registry。
+  steps:
+  - release 绑定 schema hash、capability、permissions、minRuntime、signer、status。
+  - 批准前静态校验 DSL、数据源、命令和敏感度。
+  - Registry 指向 approved release，支持上一版本回滚。
+  - 未签名、未知 signer、篡改、过期或版本不兼容拒绝。
+  validation:
+  - tamper/signature
+  - unknown signer
+  - rollback
+  - runtime version mismatch
+  acceptance:
+  - 无法静默替换轻应用
+  - 发布和回滚可审计
+  evidence:
+  - schema-app-release-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW08-07
+  title: 交付首个 Synthetic Schema App
+  primary_owner: luna_fixtures
+  supporting_agents:
+  - terra_worker
+  - terra_tester
+  execution_mode: workspace-write
+  parallel_group: F
+  risk: medium
+  depends_on:
+  - HW08-05
+  - HW08-06
+  allowed_paths:
+  - examples/schema-apps/**
+  - apps/workspace-web/e2e/schema-apps/**
+  objective: 用非敏感的设备巡检或通知确认验证 DSL，不迁移旧业务。
+  steps:
+  - 定义表单、列表、状态和确认动作。
+  - 通过测试域服务/fixture command，不使用任意 endpoint。
+  - 覆盖版本更新和回滚。
+  - 生产 Registry 仅在明确批准时启用。
+  validation:
+  - schema validation
+  - E2E
+  - upgrade/rollback
+  - production absence
+  acceptance:
+  - 完整轻应用不新增前端工程
+  - 无敏感真实数据
+  evidence:
+  - schema-app-demo-evidence.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: terra
+  acceptance_agents:
+  - terra_reviewer
+  acceptance_outcome: APPROVED
+- id: HW08-08
+  title: Handover & Schema App Gate
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_reviewer
+  - terra_security
+  execution_mode: read-only
+  parallel_group: G
+  risk: critical
+  depends_on:
+  - HW08-02
+  - HW08-03
+  - HW08-05
+  - HW08-06
+  - HW08-07
+  allowed_paths:
+  - services/handover/**
+  - apps/workspace-web/src/capabilities/handover/**
+  - packages/schema-app-contracts/**
+  - apps/workspace-web/src/schema-runtime/**
+  objective: 确认高敏临床场景和轻应用扩展都未突破安全边界。
+  steps:
+  - 复核临床隐私、并发、DSL、签名、CSP、Registry 和 rollback。
+  - 签发 G08。
+  validation:
+  - full handover/schema suite
+  - security review
+  acceptance:
+  - P0/P1 为零
+  - 轻应用只用于批准的低风险场景
+  evidence:
+  - G08-gate-decision.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-phase-gate
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  - sol_phase_gate
+  acceptance_outcome: PASS_RECOMMENDED
+acceptance_policy:
+  task_routing:
+    low_medium:
+      required_agents:
+      - terra_reviewer
+      required_outcome: APPROVED
+    high:
+      required_agents:
+      - terra_reviewer
+      - sol_acceptance
+      required_sol_outcome: ACCEPT
+    critical:
+      required_agents:
+      - terra_reviewer
+      - terra_security
+      - sol_architecture_security
+      required_sol_outcome: ACCEPT
+      exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+  phase_gate:
+    required_agents:
+    - sol_architecture_security
+    - sol_phase_gate
+    required_sol_phase_outcome: PASS_RECOMMENDED
+    final_decision_owner: parent_codex
+    human_decision_required: false
+  sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.

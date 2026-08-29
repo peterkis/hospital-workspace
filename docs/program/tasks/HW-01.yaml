@@ -1,0 +1,398 @@
+schemaVersion: hospital-workspace.phase.v1
+program: hospital-workspace
+targetRepository: peterkis/hospital-workspace
+legacySource:
+  mode: optional-local
+  required: false
+  absencePolicy: reimplement-from-target-contracts
+  configPath: config/local/legacy-source.yaml
+referenceSource:
+  repository: HirezmingD/Knowe-agent-groupchat
+  commit: 1e584f84734e9db55515ef4391fcb9e9c40399cd
+id: HW-01
+title: 共享契约内核与干净数据库基线
+goal: 建立事件、命令、身份上下文、敏感度、卡片、ID、时间、审计和数据库运行时的纯内核；数据库从空基线重建，不迁移旧数据或旧 migration。
+dependsOn:
+- HW-00
+deliverables:
+- '`@hospital/contracts-core`、`event-contracts`、`command-contracts`'
+- '`time-core`、`observability`、`testkit`'
+- Prisma 7 multi-file/multi-schema 空数据库基线
+- 数据库运行时与 repository-only 边界
+- synthetic seed 与 rebuild/rollback 门禁
+outOfScope:
+- 真实身份登录
+- 业务领域表
+- Hub 或 Work Item 服务
+- 从旧数据库导入任何记录
+acceptance:
+- 核心 contracts 纯净、版本化并有无效 fixtures
+- 数据库从空库可创建、迁移、seed、重建和恢复
+- Redis Session 权威未被数据库模型污染
+- raw Prisma 仅 repository 可用，跨 schema 写入被阻断
+- 时间、ID、Trace、Audit、Sensitivity 语义统一
+gates:
+- G01-1 契约纯度与版本化
+- G01-2 数据库空基线可重建
+- G01-3 repository-only 数据访问
+- G01-4 时间、ID、审计与敏感度一致性
+tasks:
+- id: HW01-01
+  title: 建立 Contracts Core
+  primary_owner: terra_contracts
+  supporting_agents:
+  - luna_fixtures
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: A
+  risk: medium
+  depends_on: []
+  allowed_paths:
+  - packages/contracts-core/**
+  objective: 定义所有跨边界协议共用的 ID、Actor、ContextRef、ScopeRef、Sensitivity、Trace 和版本字段。
+  steps:
+  - 使用 UUIDv7/稳定字符串标识策略并区分外部业务号。
+  - 定义 Hospital/Campus/Department/Person/Device/Patient/Episode/Asset/Project ContextRef。
+  - 定义 sensitivity、visibility、retention 和 redaction hints。
+  - 所有 transported payload 带 schemaVersion，默认拒绝未知字段。
+  - 添加边界、非法和序列化 fixtures。
+  validation:
+  - contract unit tests
+  - unknown-field tests
+  - serialization snapshots
+  acceptance:
+  - 不依赖 React/Fastify/Prisma/Node request
+  - 可表达人员、组织、患者、资产和项目上下文但不承载业务数据
+  evidence:
+  - contract-snapshot.json
+  - negative-fixtures.log
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: terra
+  acceptance_agents:
+  - terra_reviewer
+  acceptance_outcome: APPROVED
+- id: HW01-02
+  title: 建立 Event Envelope 与 Command Envelope
+  primary_owner: terra_contracts
+  supporting_agents:
+  - luna_fixtures
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: A
+  risk: high
+  depends_on:
+  - HW01-01
+  allowed_paths:
+  - packages/event-contracts/**
+  - packages/command-contracts/**
+  objective: 冻结 at-least-once 事件与幂等命令协议，为 Outbox、Hub、Work Item 和 Agent 提供共同语义。
+  steps:
+  - Event 包含 eventId/type/version/aggregate/version/actor/context/correlation/causation/trace/timestamps/sensitivity/payload。
+  - Command 包含 commandId/type/target/expectedVersion/idempotencyKey/actor/context/input。
+  - 区分 domain event、projection event、notification event。
+  - 禁止 Event payload 直接携带秘密或默认通知正文。
+  - 定义重复、乱序、未知版本和过期命令 fixtures。
+  validation:
+  - schema tests
+  - idempotency fixtures
+  - unknown-version quarantine tests
+  acceptance:
+  - 不承诺 exactly-once
+  - 同一事件可安全重复消费
+  - 命令冲突显式返回 409/typed conflict
+  evidence:
+  - event-command-contract-report.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW01-03
+  title: 迁移并净化 time/postgres/redis 基础能力
+  primary_owner: terra_migrator
+  supporting_agents:
+  - luna_inventory
+  - terra_tester
+  execution_mode: workspace-write
+  parallel_group: B
+  risk: medium
+  depends_on: []
+  allowed_paths:
+  - packages/time-core/**
+  - packages/postgres-core/**
+  - packages/redis-core/**
+  - docs/migration/**
+  objective: 从 legacy 固定 commit 白名单复制三个小包，移除生成物和旧项目假设。
+  steps:
+  - 逐文件复制源码和测试，不复制 dist、src 下生成 `.js/.d.ts` 或旧 package metadata。
+  - 统一包名到 `@hospital/*`，固定 public exports。
+  - Postgres/Redis 连接配置必须支持 TLS、超时、健康和 graceful close。
+  - Time Core 固定 UTC 存储、Asia/Shanghai 业务显示和可测试 clock。
+  - 写入迁移收据和 source hashes。
+  validation:
+  - legacy source hash
+  - package build/test
+  - connection config negative tests
+  acceptance:
+  - 三个包职责单一
+  - 无对旧 repo 路径或 `@portal/*` 的依赖
+  - 无真实连接串和默认弱 TLS
+  evidence:
+  - migration-receipts/*.json
+  - package-test.log
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: terra
+  acceptance_agents:
+  - terra_reviewer
+  acceptance_outcome: APPROVED
+- id: HW01-04
+  title: 建立 Observability 与 Audit Kernel
+  primary_owner: terra_worker
+  supporting_agents:
+  - luna_fixtures
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: B
+  risk: medium
+  depends_on:
+  - HW01-01
+  allowed_paths:
+  - packages/observability/**
+  - packages/audit-contracts/**
+  objective: 统一 trace、correlation、structured log、audit actor/action/result 和脱敏。
+  steps:
+  - 定义 Pino/OpenTelemetry 适配接口，业务包不直接绑定 transport。
+  - 所有命令和事件贯穿 trace/correlation/causation。
+  - Audit 记录 allow/deny、变更前后摘要和 resourceVersion，不记录秘密或完整患者正文。
+  - 提供 log redaction 和 test capture。
+  validation:
+  - redaction tests
+  - trace propagation fixtures
+  - audit schema tests
+  acceptance:
+  - 日志可关联但不能反向暴露 Session/Token/患者敏感正文
+  - 测试可断言审计而不依赖外部 collector
+  evidence:
+  - observability-contract-report.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: terra
+  acceptance_agents:
+  - terra_reviewer
+  acceptance_outcome: APPROVED
+- id: HW01-05
+  title: 创建 Prisma 多文件空基线
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_contracts
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: C
+  risk: critical
+  depends_on:
+  - HW01-01
+  - HW01-03
+  allowed_paths:
+  - database/**
+  - packages/database-runtime/**
+  - prisma.config.ts
+  objective: 建立全新的单迁移谱系和按领域文件拆分的 PostgreSQL schema，只包含 Foundation 所需的 iam/config/audit 元数据。
+  steps:
+  - 使用 Prisma 7 GA，多文件 schema 目录和 PostgreSQL multi-schema。
+  - 初始仅创建 `iam`、`config`、`audit`，不复制 legacy migrations/schema。
+  - Session 不进入 PostgreSQL 权威表；Redis 为运行时 Session 权威。
+  - 生成 client 输出到 generated 目录且不提交。
+  - 建立空库 create/migrate/seed/reset/backup-restore 的明确命令。
+  validation:
+  - prisma validate/generate
+  - empty database migrate
+  - migration replay twice
+  - rollback/rebuild rehearsal
+  acceptance:
+  - 新 migration 从 0001 开始
+  - 没有 feedback/handover/ticket/legacy session 表
+  - 所有 seed 为 synthetic 且幂等
+  evidence:
+  - database-baseline-report.md
+  - migration-hashes.json
+  - rebuild-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW01-06
+  title: 建立 repository-only 数据访问门
+  primary_owner: terra_worker
+  supporting_agents:
+  - terra_security
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: D
+  risk: high
+  depends_on:
+  - HW01-05
+  allowed_paths:
+  - packages/database-runtime/**
+  - scripts/governance/**
+  - docs/governance/**
+  objective: 限制原始 Prisma Client 只在明确 repository 模块中使用，防止服务跨领域直接写表。
+  steps:
+  - database-runtime 只导出受控 factory 和 transaction context。
+  - 前端和 contracts 永远不能 import database-runtime。
+  - 服务只有 `src/repositories/**` 可 import 原始 client。
+  - 建立模型访问 allowlist 和跨 schema 写入静态检查。
+  - 提供绕过 fixtures。
+  validation:
+  - boundary positive/negative tests
+  - deep import scan
+  - cross-schema write fixture
+  acceptance:
+  - 所有数据访问有 owner
+  - 任意 service handler 直接调用 Prisma 被阻断
+  evidence:
+  - repository-boundary-report.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW01-07
+  title: 建立 Testkit 与 deterministic fixtures
+  primary_owner: luna_fixtures
+  supporting_agents:
+  - terra_tester
+  execution_mode: workspace-write
+  parallel_group: D
+  risk: low
+  depends_on:
+  - HW01-01
+  - HW01-02
+  - HW01-04
+  allowed_paths:
+  - packages/testkit/**
+  objective: 提供 synthetic 人员、组织、上下文、命令、事件、时钟和失败注入，避免各服务重复造 Mock。
+  steps:
+  - 固定 UUID/time/trace factories。
+  - 生成敏感/非敏感 fixture 和 redaction assertions。
+  - 提供 Postgres/Redis integration harness 接口。
+  - 提供 duplicate/out-of-order/timeout/concurrency helpers。
+  validation:
+  - testkit self-tests
+  - seed determinism hash
+  acceptance:
+  - 同 seed 产生相同 fixture
+  - 不含真实医院/患者/员工数据
+  evidence:
+  - testkit-fixture-catalog.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: terra
+  acceptance_agents:
+  - terra_reviewer
+  acceptance_outcome: APPROVED
+- id: HW01-08
+  title: Core Kernel Gate
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_reviewer
+  - terra_security
+  execution_mode: read-only
+  parallel_group: E
+  risk: critical
+  depends_on:
+  - HW01-02
+  - HW01-04
+  - HW01-05
+  - HW01-06
+  - HW01-07
+  allowed_paths:
+  - packages/**
+  - database/**
+  - prisma.config.ts
+  - scripts/governance/**
+  objective: 确认共享内核足够小、纯、版本化，数据库是新谱系且无跨域捷径。
+  steps:
+  - 复核 contracts、events、commands、audit、time、DB 和 repository 门。
+  - 检查源目录生成物、旧包名、旧 migration 和真实数据。
+  - 运行空库重建、负向边界和证据校验。
+  - 签发 G01。
+  validation:
+  - pnpm check
+  - database rebuild
+  - contract fixtures
+  - security review
+  acceptance:
+  - P0/P1 为零
+  - 允许进入身份和平台服务开发
+  evidence:
+  - G01-gate-decision.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-phase-gate
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  - sol_phase_gate
+  acceptance_outcome: PASS_RECOMMENDED
+acceptance_policy:
+  task_routing:
+    low_medium:
+      required_agents:
+      - terra_reviewer
+      required_outcome: APPROVED
+    high:
+      required_agents:
+      - terra_reviewer
+      - sol_acceptance
+      required_sol_outcome: ACCEPT
+    critical:
+      required_agents:
+      - terra_reviewer
+      - terra_security
+      - sol_architecture_security
+      required_sol_outcome: ACCEPT
+      exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+  phase_gate:
+    required_agents:
+    - sol_architecture_security
+    - sol_phase_gate
+    required_sol_phase_outcome: PASS_RECOMMENDED
+    final_decision_owner: parent_codex
+    human_decision_required: false
+  sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.

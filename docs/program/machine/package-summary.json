@@ -1,0 +1,31 @@
+{
+  "schemaVersion": "hospital-workspace.package-summary.v1.1",
+  "generatedAt": "2026-08-29T00:00:00+09:00",
+  "targetRepository": "peterkis/hospital-workspace",
+  "targetRepositoryVerifiedPresent": false,
+  "legacySource": {
+    "mode": "optional-local",
+    "required": false
+  },
+  "referenceSource": {
+    "repository": "HirezmingD/Knowe-agent-groupchat",
+    "commit": "1e584f84734e9db55515ef4391fcb9e9c40399cd"
+  },
+  "architecture": "Tauri Trusted Shell + same-origin React/Vite Workspace + Gateway + Collaboration Platform + independent domain services + server-side Agent Gateway",
+  "phaseCount": 13,
+  "workPackageCount": 103,
+  "customAgentCount": 14,
+  "customAgents": {
+    "luna": 4,
+    "terra": 7,
+    "sol": 3
+  },
+  "solAcceptance": {
+    "taskAgent": "sol_acceptance",
+    "architectureSecurityAgent": "sol_architecture_security",
+    "phaseGateAgent": "sol_phase_gate",
+    "finalDecisionOwner": "parent_codex"
+  },
+  "nestedAgentTemplateCount": 8,
+  "rootAgentsBytes": 22849
+}

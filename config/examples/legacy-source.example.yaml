@@ -1,0 +1,7 @@
+# Copy to config/local/legacy-source.yaml only when an owner-controlled legacy checkout exists.
+# config/local is ignored and must never be committed.
+mode: optional-local
+repositoryPath: D:/Projects/legacy-hospital-platform
+sourceCommit: REPLACE_WITH_FULL_LOCAL_COMMIT_SHA
+readOnly: true
+requiredForBuild: false

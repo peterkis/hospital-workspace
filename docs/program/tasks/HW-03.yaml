@@ -1,0 +1,408 @@
+schemaVersion: hospital-workspace.phase.v1
+program: hospital-workspace
+targetRepository: peterkis/hospital-workspace
+legacySource:
+  mode: optional-local
+  required: false
+  absencePolicy: reimplement-from-target-contracts
+  configPath: config/local/legacy-source.yaml
+referenceSource:
+  repository: HirezmingD/Knowe-agent-groupchat
+  commit: 1e584f84734e9db55515ef4391fcb9e9c40399cd
+id: HW-03
+title: Tauri 可信桌面壳与统一 Workspace Web
+goal: 迁移已经验证的 Tauri/WebView2 安全边界，新建 React/Vite Workspace；桌面与浏览器使用同一不可变远程 SPA 和 BFF，不在 Rust 中托管业务状态或身份 Token。
+dependsOn:
+- HW-01
+- HW-02
+deliverables:
+- '`apps/desktop-shell` Tauri 2 Trusted Shell'
+- '`apps/workspace-web` React/Vite 基础'
+- 不可变 Workspace release 与 exact origin/path/label binding
+- 三栏/四区布局、路由、Deep Link 和错误遮罩
+- Browser/Desktop 同一 UI build
+- Tauri T25～T27 核心安全测试迁移
+outOfScope:
+- 真实业务卡片
+- 通用 Tauri 原生桥
+- 托盘通知/灵动岛业务正文
+- 本地 Python/LLM/数据库
+acceptance:
+- Tauri 安全场景不减少；若采用可选旧源则附来源收据，否则以新实现测试证据为准
+- Remote Workspace capability 默认 none
+- Browser/Tauri 加载同一 immutable Workspace release
+- Profile、锁屏恢复、换人和退出无跨用户残留
+- Deep Link 不能导航任意 URL 或携带敏感正文
+gates:
+- G03-1 Tauri 安全实现与测试保真
+- G03-2 Remote Workspace 零原生权限
+- G03-3 单一同源不可变 release
+- G03-4 共享终端 Profile/Resume
+- G03-5 Browser/Desktop UI 等价
+tasks:
+- id: HW03-01
+  title: 迁移 Tauri Trust Policy 与 Runtime
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_migrator
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: A
+  risk: critical
+  depends_on: []
+  allowed_paths:
+  - apps/desktop-shell/**
+  - docs/migration/**
+  - docs/security/**
+  objective: 从 legacy 固定 commit 复制并重绑定 Tauri 2、WebView2、Profile、Session termination、trusted resume 和证书策略。
+  steps:
+  - 迁移 `desktop-runtime` 的 Rust workspace 和测试，重命名 crate/package，不复制历史 Evidence/临时证书/target。
+  - 保留 exact origin/path/label、remote permission none、InPrivate profile、fail-closed cleanup。
+  - 把旧 Clinical Spark bindings 替换为新 Workspace Registry contract，不临时放宽。
+  - 更新命令到 pnpm，但不改安全语义。
+  - 生成逐文件来源和测试迁移收据。
+  validation:
+  - cargo test trust-policy
+  - Windows target cargo check
+  - legacy-vs-new behavior matrix
+  acceptance:
+  - 安全测试数量和关键场景不减少
+  - 不存在 generic shell/fs/http/process plugin
+  evidence:
+  - desktop-migration-receipt.json
+  - rust-test-report.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW03-02
+  title: 创建 Workspace Web 骨架
+  primary_owner: terra_worker
+  supporting_agents:
+  - luna_fixtures
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: A
+  risk: medium
+  depends_on: []
+  allowed_paths:
+  - apps/workspace-web/**
+  - packages/ui/**
+  - packages/workspace-contracts/**
+  objective: 建立 React 19 + Vite 8 的单一工作空间前端，不复制任何旧 Next.js 页面。
+  steps:
+  - 建立 App bootstrap、router、error boundary、query client、state boundary、i18n 和 theme tokens。
+  - 布局包含导航栏、空间列表、主时间线、右侧 Canvas/Context。
+  - 初始只使用 synthetic fixture，不调用业务 API。
+  - 支持 Chrome 120 兼容下限和 WebView2。
+  - 建立 accessibility、keyboard、reduced motion 和 bundle budget。
+  validation:
+  - unit/component tests
+  - production build
+  - a11y smoke
+  - base path test
+  acceptance:
+  - 无 Next.js/Prisma/server-only
+  - 同一 build 可由浏览器与 Tauri 加载
+  evidence:
+  - workspace-shell-screenshots
+  - bundle-report.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: terra
+  acceptance_agents:
+  - terra_reviewer
+  acceptance_outcome: APPROVED
+- id: HW03-03
+  title: 建立 Workspace Release Contract
+  primary_owner: terra_contracts
+  supporting_agents:
+  - luna_fixtures
+  - terra_tester
+  execution_mode: workspace-write
+  parallel_group: B
+  risk: high
+  depends_on:
+  - HW03-02
+  allowed_paths:
+  - packages/release-contracts/**
+  - apps/workspace-web/scripts/**
+  - services/gateway/src/registry/**
+  - infrastructure/nginx/**
+  objective: 将 Workspace 静态制品发布到不可变版本路径并由 Capability Registry 指针选择。
+  steps:
+  - release id 绑定 source commit、lock、assets hashes、minDesktopRuntime。
+  - 路径形如 `/apps/workspace/<releaseId>/`，禁止 mutable `latest` 作为启动真相。
+  - Nginx cache headers 区分 immutable assets 与入口。
+  - 保留上一 approved release，支持原子指针回滚。
+  validation:
+  - asset closure
+  - hash tamper
+  - base/deep-link refresh
+  - rollback pointer
+  acceptance:
+  - Tauri 与 Browser 加载同一 releaseId
+  - 制品不依赖构建机路径
+  evidence:
+  - workspace-release-manifest.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW03-04
+  title: 绑定 Workspace WebView 安全策略
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: C
+  risk: critical
+  depends_on:
+  - HW03-01
+  - HW03-03
+  allowed_paths:
+  - apps/desktop-shell/src-tauri/**
+  - apps/desktop-shell/crates/trust-policy/**
+  objective: 将 Tauri 窗口精确绑定到 Registry 批准的 Workspace origin/path/release，并保持 remote capability none。
+  steps:
+  - 窗口创建前安装 WebView2 navigation/download/iframe/new-window guards。
+  - 只允许自身 HTTPS immutable path 与明确登录跳转。
+  - 所有 deny 先持久审计再关闭；审计失败 fail-closed。
+  - Rust 不能读取 Cookie、Token、localStorage 或业务数据。
+  - 未知 Registry 字段、版本、label、permission 全部拒绝。
+  validation:
+  - navigation matrix
+  - wrong origin/path/label
+  - audit failure
+  - certificate policy
+  acceptance:
+  - remote Workspace 无 native command
+  - 任何安全钩子未就绪时不导航
+  evidence:
+  - webview-binding-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW03-05
+  title: 实现安全 Deep Link Intent
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_contracts
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: D
+  risk: high
+  depends_on:
+  - HW03-04
+  allowed_paths:
+  - packages/deep-link-contracts/**
+  - apps/desktop-shell/src-tauri/**
+  - apps/workspace-web/src/routing/**
+  objective: 支持 `hospital-workspace://capability/resource` 唤起，但只传递最小 route intent，不携带敏感正文或任意 URL。
+  steps:
+  - 定义 allowlisted grammar、长度、字符、capability/version。
+  - 未登录/锁屏时队列，Trusted Resume 后交给 Workspace router。
+  - 拒绝 file/http/javascript/traversal/oversize。
+  - Intent 只引用 resource id，详情由服务端重新授权查询。
+  validation:
+  - parser property tests
+  - malformed/fuzz
+  - locked/resume
+  - stale user
+  acceptance:
+  - 无法利用 deep link 绕过 Registry 或权限
+  - 切换人员后旧 intent 被丢弃
+  evidence:
+  - deep-link-matrix.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW03-06
+  title: 迁移 Profile、Logout、Switch-Person 与 Trusted Resume
+  primary_owner: terra_tester
+  supporting_agents:
+  - terra_migrator
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: E
+  risk: critical
+  depends_on:
+  - HW03-01
+  - HW02-07
+  allowed_paths:
+  - apps/desktop-shell/**
+  - scripts/acceptance/desktop/**
+  objective: 在新 Gateway/Workspace 上复验旧 T26/T27 的共享终端安全机制。
+  steps:
+  - 复验 launch-scoped shared InPrivate Profile。
+  - logout/switch-person 等待服务端 2xx/303 撤销确认；失败保持关闭/遮罩。
+  - 关闭全部 WebView、确认 BrowserProcessExited、删除 UDF。
+  - 锁屏、睡眠、RDP 断开、第二实例都进入 Trusted Resume Gate。
+  - 网络/Redis 暂不可用时遮罩重试，不显示缓存用户。
+  validation:
+  - lifecycle tests
+  - forced failure
+  - stale response
+  - crash cleanup
+  acceptance:
+  - 关键 T25/T26/T27 场景完整
+  - 无跨用户本地状态
+  evidence:
+  - desktop-lifecycle-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW03-07
+  title: Browser/Desktop Workspace E2E
+  primary_owner: terra_browser
+  supporting_agents:
+  - terra_tester
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: F
+  risk: high
+  depends_on:
+  - HW03-02
+  - HW03-04
+  - HW03-06
+  allowed_paths:
+  - apps/workspace-web/e2e/**
+  - scripts/acceptance/desktop/**
+  - evidence/HW-03/**
+  objective: 证明两个客户端看到相同 release、Principal、权限、基础导航和错误遮罩。
+  steps:
+  - 使用 synthetic identity 和 isolation environment。
+  - Chrome 和真实 Tauri/WebView2 分别登录、导航、锁屏恢复、退出。
+  - 捕获 console/network/page error、窗口和 session receipts。
+  - Linux 浏览器结果不能替代 Windows WebView2。
+  validation:
+  - Playwright browser
+  - Windows Tauri probe
+  - session equality
+  acceptance:
+  - 两端行为一致
+  - 证据无秘密或患者数据
+  evidence:
+  - browser-desktop-e2e-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW03-08
+  title: Desktop/Web Foundation Gate
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_reviewer
+  - terra_security
+  execution_mode: read-only
+  parallel_group: G
+  risk: critical
+  depends_on:
+  - HW03-04
+  - HW03-05
+  - HW03-06
+  - HW03-07
+  allowed_paths:
+  - apps/desktop-shell/**
+  - apps/workspace-web/**
+  - packages/deep-link-contracts/**
+  - packages/release-contracts/**
+  objective: 确认桌面化只改变载体和原生体验，不创建第二套身份或扩大远程权限。
+  steps:
+  - 审查 Tauri、WebView2、release、deep link、session、a11y 和 evidence。
+  - 扫描 token custody、native plugins、mutable URL、旧 Mini App bindings。
+  - 签发 G03。
+  validation:
+  - full Rust/TS/browser/desktop checks
+  - security review
+  acceptance:
+  - P0/P1 为零
+  - 允许后续平台事件和业务能力进入 Workspace
+  evidence:
+  - G03-gate-decision.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-phase-gate
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  - sol_phase_gate
+  acceptance_outcome: PASS_RECOMMENDED
+acceptance_policy:
+  task_routing:
+    low_medium:
+      required_agents:
+      - terra_reviewer
+      required_outcome: APPROVED
+    high:
+      required_agents:
+      - terra_reviewer
+      - sol_acceptance
+      required_sol_outcome: ACCEPT
+    critical:
+      required_agents:
+      - terra_reviewer
+      - terra_security
+      - sol_architecture_security
+      required_sol_outcome: ACCEPT
+      exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+  phase_gate:
+    required_agents:
+    - sol_architecture_security
+    - sol_phase_gate
+    required_sol_phase_outcome: PASS_RECOMMENDED
+    final_decision_owner: parent_codex
+    human_decision_required: false
+  sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.

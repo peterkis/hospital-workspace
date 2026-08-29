@@ -1,0 +1,413 @@
+schemaVersion: hospital-workspace.phase.v1
+program: hospital-workspace
+targetRepository: peterkis/hospital-workspace
+legacySource:
+  mode: optional-local
+  required: false
+  absencePolicy: reimplement-from-target-contracts
+  configPath: config/local/legacy-source.yaml
+referenceSource:
+  repository: HirezmingD/Knowe-agent-groupchat
+  commit: 1e584f84734e9db55515ef4391fcb9e9c40399cd
+id: HW-04
+title: 事件、Inbox、Todo、回放与协同平台
+goal: 在 `services/collaboration` 按目标契约实现可靠事件存储、Transactional Outbox 接入、用户 Inbox/Todo、SSE 单连接、断线补偿、去重和多表面投影；可选旧源仅用于行为核对。
+dependsOn:
+- HW-01
+- HW-02
+- HW-03
+deliverables:
+- '`services/collaboration` events/inbox/todos/stream 模块'
+- '`hub-contracts`、`hub-client` 与 Event Catalog'
+- durable cursor/replay/dedup
+- 一个 Workspace SSE 连接
+- Outbox producer/relay SDK
+- synthetic event-to-inbox-to-UI 闭环
+outOfScope:
+- 领域业务状态
+- Agent Runtime
+- WebSocket 替换 SSE
+- 灵动岛原生桥
+acceptance:
+- 所有事件注册、版本化并有 owner/sensitivity
+- 领域事务与 Outbox 原子，relay 可恢复且幂等
+- Event/Inbox/Todo 可从 durable store 确定性重建
+- Workspace 只有一个 SSE 连接，断线后 gap recovery
+- 未读、读游标、事件游标语义分离
+gates:
+- G04-1 Collaboration 事件行为与测试保真
+- G04-2 Event Catalog 与版本化
+- G04-3 Outbox/投递/去重
+- G04-4 SSE 回放与单连接
+- G04-5 Inbox/Todo/未读一致性
+tasks:
+- id: HW04-01
+  title: 迁移 Hub 核心资产到 Collaboration Service
+  primary_owner: terra_migrator
+  supporting_agents:
+  - luna_inventory
+  - terra_tester
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: A
+  risk: high
+  depends_on: []
+  allowed_paths:
+  - services/collaboration/**
+  - packages/hub-contracts/**
+  - packages/hub-client/**
+  - docs/migration/**
+  objective: 按目标事件契约实现 Collaboration 服务；若配置可选旧源，只允许提取经白名单审查的 Hub 行为和测试，排除 hub-next、生成物与旧项目假设。
+  steps:
+  - 建立 source/target mapping，逐文件复制并改名为 `@hospital/*`。
+  - 将 legacy `hub-service` modules 映射为 events/inbox/todos/stream。
+  - 删除 Next adapter、旧 Prisma client 引用和旧 appCode 常量。
+  - 保留现有测试意图，并迁移为新 contracts/testkit。
+  - 记录未迁移文件和原因。
+  validation:
+  - source hash verification
+  - service build/test
+  - no @portal/no hub-next scan
+  acceptance:
+  - Collaboration Service 可独立启动
+  - 迁移代码有 provenance
+  evidence:
+  - hub-migration-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW04-02
+  title: 建立 Event Catalog 与 Schema Registry
+  primary_owner: terra_contracts
+  supporting_agents:
+  - luna_fixtures
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: A
+  risk: high
+  depends_on:
+  - HW01-02
+  allowed_paths:
+  - packages/hub-contracts/**
+  - services/collaboration/src/catalog/**
+  - scripts/governance/**
+  objective: 所有可发布事件必须登记 owner、版本、敏感度、可见性、消费者和兼容策略。
+  steps:
+  - 定义 catalog entry 与 payload schema registry。
+  - 未登记 eventType、未知 schemaVersion 或敏感度缺失一律拒绝/隔离。
+  - 禁止直接把 Event payload 当通知正文。
+  - 建立 breaking-change 和 consumer inventory 检查。
+  validation:
+  - catalog checker
+  - duplicate type/version
+  - unknown schema
+  - breaking fixture
+  acceptance:
+  - 新事件必须先注册
+  - 旧版本保留明确读策略或正式退役
+  evidence:
+  - event-catalog.json
+  - catalog-check.log
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW04-03
+  title: 实现 Transactional Outbox SDK 与 Relay
+  primary_owner: terra_worker
+  supporting_agents:
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: B
+  risk: critical
+  depends_on:
+  - HW04-01
+  - HW04-02
+  - HW01-05
+  allowed_paths:
+  - packages/outbox-sdk/**
+  - services/collaboration/src/ingest/**
+  - database/prisma/models/collab.prisma
+  objective: 为所有领域服务提供同事务 Outbox 和可重试 Relay，避免业务成功但事件丢失。
+  steps:
+  - 定义 outbox row、event envelope、attempt、nextAttemptAt、poison/dead-letter。
+  - 领域事务内写 aggregate 和 outbox；relay 只在 commit 后发送。
+  - relay crash-before/after-send、duplicate delivery 和 retry 采用 eventId 幂等。
+  - 禁止生产者直接调用 Hub HTTP 代替 Outbox。
+  - 提供 health/lag/backpressure metrics。
+  validation:
+  - transaction rollback
+  - crash injection
+  - duplicate relay
+  - poison event
+  acceptance:
+  - 无 ghost event、lost event 或双业务写入
+  - 故障后可恢复 drain
+  evidence:
+  - outbox-failure-receipts.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW04-04
+  title: 实现 Durable Event Store、Inbox 与 Todo Projection
+  primary_owner: terra_worker
+  supporting_agents:
+  - terra_tester
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: B
+  risk: high
+  depends_on:
+  - HW04-02
+  - HW04-03
+  allowed_paths:
+  - services/collaboration/src/modules/events/**
+  - services/collaboration/src/modules/inbox/**
+  - services/collaboration/src/modules/todos/**
+  - database/prisma/models/collab.prisma
+  objective: 将领域事件可靠写入事件库，并按人员/角色/范围投影到 Inbox 和 Todo。
+  steps:
+  - 事件库以 eventId 唯一，保留 aggregateVersion/correlation/causation。
+  - Projection handler 幂等、可重放、支持版本标记。
+  - Inbox 与 Todo 分离；Todo 只来自明确 work/decision 状态。
+  - recipient 解析使用服务端 Principal/Scope，不信任 producer 指定的任意 user。
+  - 读/未读/归档不改变领域事件。
+  validation:
+  - projection replay
+  - recipient authorization
+  - duplicate/out-of-order
+  - concurrent read cursor
+  acceptance:
+  - 同一事件集可确定性重建 Inbox/Todo
+  - 未读不靠简单序号差
+  evidence:
+  - projection-state-hash.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW04-05
+  title: 实现 SSE Stream、Cursor 与 Gap Recovery
+  primary_owner: terra_worker
+  supporting_agents:
+  - terra_tester
+  - terra_browser
+  execution_mode: workspace-write
+  parallel_group: C
+  risk: high
+  depends_on:
+  - HW04-04
+  - HW02-04
+  allowed_paths:
+  - services/collaboration/src/modules/stream/**
+  - packages/hub-client/**
+  - apps/workspace-web/src/platform/events/**
+  objective: 使用一个 same-origin SSE 连接传输实时投影，并在断线后从 durable API 补齐缺口。
+  steps:
+  - SSE 发送 eventId/cursor，不承诺全局连续 seq。
+  - 客户端保存非敏感 cursor，重连先调用 gap endpoint 再进入 live。
+  - 心跳、退避、Session 失效、visibility pause/resume 明确。
+  - 多个 capability 共享一个连接，不自行创建 EventSource。
+  - at-least-once 下客户端以 eventId/dedupKey 幂等。
+  validation:
+  - single connection assertion
+  - disconnect/gap/replay
+  - 401/session revoked
+  - duplicate/out-of-order
+  acceptance:
+  - 杀掉连接后状态最终一致
+  - 无重复 UI 活动
+  evidence:
+  - sse-recovery-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW04-06
+  title: 实现 Workspace Inbox/Todo/消息中心基础视图
+  primary_owner: terra_worker
+  supporting_agents:
+  - luna_fixtures
+  - terra_browser
+  execution_mode: workspace-write
+  parallel_group: D
+  risk: medium
+  depends_on:
+  - HW04-05
+  allowed_paths:
+  - apps/workspace-web/src/features/inbox/**
+  - apps/workspace-web/src/features/todos/**
+  - packages/ui/**
+  objective: 以人员为中心显示“我的消息”和“我的待办”，不暴露底层系统菜单。
+  steps:
+  - 统一消息、待办、优先级、来源 capability、状态和深链。
+  - 敏感摘要按 visibility/sensitivity 降级。
+  - 读/未读、批量标记、过滤和搜索通过服务端 API。
+  - 大列表虚拟化和键盘导航。
+  validation:
+  - component tests
+  - a11y
+  - 1k/10k fixture performance
+  - redaction
+  acceptance:
+  - 用户可以从待办直达目标工作项
+  - 锁屏/通知列表不泄漏敏感正文
+  evidence:
+  - inbox-todo-ui-report.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: terra
+  acceptance_agents:
+  - terra_reviewer
+  acceptance_outcome: APPROVED
+- id: HW04-07
+  title: Synthetic Event End-to-End
+  primary_owner: terra_tester
+  supporting_agents:
+  - luna_fixtures
+  - terra_browser
+  execution_mode: workspace-write
+  parallel_group: E
+  risk: high
+  depends_on:
+  - HW04-03
+  - HW04-05
+  - HW04-06
+  allowed_paths:
+  - services/collaboration/test/**
+  - apps/workspace-web/e2e/**
+  - packages/testkit/**
+  - evidence/HW-04/**
+  objective: 在没有真实业务领域前走通 command fixture→outbox→event→inbox/todo→SSE→UI→read。
+  steps:
+  - 创建仅测试启用的 synthetic producer。
+  - 覆盖成功、重复、乱序、延迟、poison、断线和 Session 撤销。
+  - 证明刷新后从 durable state 重建。
+  - 生产构建不包含测试端点/seed。
+  validation:
+  - full E2E
+  - failure injection
+  - production absence scan
+  acceptance:
+  - 闭环可重复
+  - 测试能力不进入 production registry
+  evidence:
+  - synthetic-event-e2e.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW04-08
+  title: Event Collaboration Gate
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_reviewer
+  - terra_security
+  execution_mode: read-only
+  parallel_group: F
+  risk: critical
+  depends_on:
+  - HW04-03
+  - HW04-04
+  - HW04-05
+  - HW04-07
+  allowed_paths:
+  - services/collaboration/**
+  - packages/hub-*/**
+  - packages/outbox-sdk/**
+  - apps/workspace-web/src/platform/events/**
+  objective: 确认事件平台可靠且只是投影/传输层，不拥有业务真相。
+  steps:
+  - 审查 Catalog、Outbox、Event Store、Inbox/Todo、SSE、replay、redaction。
+  - 查找 producer 直发、客户端多连接、exactly-once 虚假承诺和越权 recipient。
+  - 签发 G04。
+  validation:
+  - full collaboration suite
+  - replay state hash
+  - security review
+  acceptance:
+  - P0/P1 为零
+  - 允许 Work Item 与领域服务接入
+  evidence:
+  - G04-gate-decision.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-phase-gate
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_acceptance
+  - sol_phase_gate
+  acceptance_outcome: PASS_RECOMMENDED
+acceptance_policy:
+  task_routing:
+    low_medium:
+      required_agents:
+      - terra_reviewer
+      required_outcome: APPROVED
+    high:
+      required_agents:
+      - terra_reviewer
+      - sol_acceptance
+      required_sol_outcome: ACCEPT
+    critical:
+      required_agents:
+      - terra_reviewer
+      - terra_security
+      - sol_architecture_security
+      required_sol_outcome: ACCEPT
+      exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+  phase_gate:
+    required_agents:
+    - sol_acceptance
+    - sol_phase_gate
+    required_sol_phase_outcome: PASS_RECOMMENDED
+    final_decision_owner: parent_codex
+    human_decision_required: false
+  sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.

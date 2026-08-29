@@ -1,0 +1,11 @@
+{
+  "schemaVersion": "hospital-workspace.runtime-config.v1",
+  "displayName": "Hospital Workspace",
+  "publicOrigin": "https://workspace.example.internal",
+  "authOrigin": "https://auth.example.internal",
+  "environment": "development",
+  "featureFlags": {
+    "nativeNotifications": false,
+    "agentWorkspace": false
+  }
+}

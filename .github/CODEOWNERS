@@ -1,0 +1,10 @@
+# Concrete GitHub ownership for the personal public repository.
+* @peterkis
+
+/.github/ @peterkis
+/AGENTS.md @peterkis
+/PUBLIC-DATA-BOUNDARY.md @peterkis
+/SECURITY.md @peterkis
+/apps/desktop-shell/ @peterkis
+/services/gateway/ @peterkis
+/database/ @peterkis

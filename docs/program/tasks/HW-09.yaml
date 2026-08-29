@@ -1,0 +1,421 @@
+schemaVersion: hospital-workspace.phase.v1
+program: hospital-workspace
+targetRepository: peterkis/hospital-workspace
+legacySource:
+  mode: optional-local
+  required: false
+  absencePolicy: reimplement-from-target-contracts
+  configPath: config/local/legacy-source.yaml
+referenceSource:
+  repository: HirezmingD/Knowe-agent-groupchat
+  commit: 1e584f84734e9db55515ef4391fcb9e9c40399cd
+id: HW-09
+title: Agent Gateway、Coordinator／Worker 与受控协作
+goal: 将 Agent 作为服务端受控 Capability 接入工作项和 Harness：Coordinator 负责任务拆解与汇总，Worker 执行专门任务，所有工具、审批、Handoff、产物和完成状态由系统约束。
+dependsOn:
+- HW-04
+- HW-05
+- HW-06
+deliverables:
+- '`services/agent-gateway`'
+- '`agent-contracts`、Run/Task/Attempt/Tool/Approval 模型'
+- Coordinator/Worker Runtime
+- 受控 Tool Registry 与权限风险分级
+- Harness/Decision/Handoff 集成
+- Workspace Agent 协作空间
+- 首个低风险报修分诊或知识整理 Agent
+outOfScope:
+- 客户端本地 Python Agent
+- 任意 Shell/SQL/HTTP/文件系统工具
+- 自主执行高风险临床/财务写操作
+- 模型文本直接改变业务状态
+acceptance:
+- Coordinator/Worker 的任务、工具、Handoff 和产物可追溯
+- Tool Registry 不含 Shell/SQL/任意 HTTP/文件系统
+- 写工具有服务端权限和用户审批
+- 取消/重启/晚到/重复审批状态正确
+- 首个 Agent 保持建议模式，失败不影响确定性业务
+gates:
+- G09-1 Agent Run 与完成状态机
+- G09-2 Tool Registry 最小权限
+- G09-3 Coordinator/Worker/Handoff
+- G09-4 用户审批与取消恢复
+- G09-5 模型故障、成本与审计
+tasks:
+- id: HW09-01
+  title: 定义 Agent Run、Task、Attempt 与 Approval Contracts
+  primary_owner: terra_contracts
+  supporting_agents:
+  - luna_fixtures
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: A
+  risk: critical
+  depends_on: []
+  allowed_paths:
+  - packages/agent-contracts/**
+  - packages/harness-contracts/**
+  - packages/hub-contracts/**
+  objective: 将自然语言消息、Agent 计划、任务、工具调用、等待、阻塞、审批、产物和完成状态严格分离。
+  steps:
+  - 定义 AgentProfile、Run、Task、Attempt、ToolCall、Approval、Artifact、Result。
+  - 状态沿用 Harness 且每个转换有 actor/reason/version。
+  - 模型 `final` 文本不能直接置 Run succeeded；validator/Harness 决定。
+  - Approval 绑定具体 ToolCall/command/影响/过期。
+  - 提供取消、超时、晚到、重启、重复审批 fixtures。
+  validation:
+  - state transition
+  - invalid completion
+  - approval race
+  - late event
+  acceptance:
+  - 契约能表达 Coordinator/Worker
+  - 用户裁决优先且不可被模型覆盖
+  evidence:
+  - agent-contract-snapshot.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW09-02
+  title: 建立 Agent Gateway 服务与 Provider Boundary
+  primary_owner: terra_worker
+  supporting_agents:
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: B
+  risk: high
+  depends_on:
+  - HW09-01
+  allowed_paths:
+  - services/agent-gateway/**
+  - database/prisma/models/agent.prisma
+  - packages/agent-contracts/**
+  objective: 建立模型调用、Run 持久化、队列、恢复、取消和成本计量，模型密钥只在服务端。
+  steps:
+  - 实现 Fastify control API 与 worker runtime。
+  - Provider Adapter 支持 OpenAI-compatible，配置和密钥只在服务端 secret store。
+  - Run/Task/Attempt 持久化，重启后恢复 queued/running/waiting_user。
+  - Token/latency/error/cost 计量写入审计，不记录敏感 prompt 全文。
+  - 健康、graceful shutdown、backpressure 和并发限额。
+  validation:
+  - provider fake
+  - timeout/retry
+  - restart recovery
+  - cancel
+  - secret scan
+  acceptance:
+  - 客户端无模型 API Key
+  - 服务重启不丢审批/状态
+  evidence:
+  - agent-gateway-runtime-report.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW09-03
+  title: 实现 Coordinator／Worker 编排
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_worker
+  - terra_tester
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: B
+  risk: critical
+  depends_on:
+  - HW09-01
+  - HW09-02
+  allowed_paths:
+  - services/agent-gateway/src/orchestration/**
+  - packages/agent-contracts/**
+  objective: 借鉴 Knowe 的项目经理和专门成员，但由确定性 Runtime 管理任务依赖、并发、Handoff 和汇总。
+  steps:
+  - Coordinator 只能创建有界 Task Envelope，指定目标、输入、工具权限、完成条件和依赖。
+  - Worker 有独立 profile/context budget/tool allowlist，但不拥有业务权限之外的能力。
+  - 并行 Task 只在依赖和资源互斥时启动。
+  - Handoff 进入 Collaboration Harness，接受/拒绝/返工留痕。
+  - Coordinator 汇总引用 Worker artifacts/evidence，不伪造执行结果。
+  validation:
+  - task DAG
+  - cycle detection
+  - handoff reject/rework
+  - worker failure
+  - parallel resource lock
+  acceptance:
+  - Agent 团队可协作但无法绕过系统任务状态
+  - 每个结果可追溯到 Worker/Attempt
+  evidence:
+  - agent-orchestration-report.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW09-04
+  title: 实现受控 Tool Registry 与 Risk Policy
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_contracts
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: C
+  risk: critical
+  depends_on:
+  - HW09-02
+  - HW02-05
+  allowed_paths:
+  - services/agent-gateway/src/tools/**
+  - packages/tool-contracts/**
+  - database/prisma/models/config.prisma
+  objective: 只允许模型通过 provider-native structured tool calls 调用批准的医院 API 工具。
+  steps:
+  - 工具定义 name/version/input/output/owner/permission/scope/risk/idempotency。
+  - 禁止 generic shell、SQL、arbitrary HTTP、filesystem、browser automation。
+  - read 工具默认最小 Scope；write 工具必须服务端权限并按 risk 进入用户审批。
+  - 模型文本、XML、Markdown JSON 不能触发工具执行。
+  - Tool result 作为不可信输入，防 prompt/tool injection。
+  validation:
+  - fake text tool call
+  - unknown tool
+  - scope deny
+  - approval required
+  - result injection
+  - replay
+  acceptance:
+  - 无通用逃逸工具
+  - 所有 ToolCall 绑定 Principal/Run/Trace/Audit
+  evidence:
+  - tool-registry-risk-matrix.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW09-05
+  title: 集成 Harness、Decision、Handoff 与 Outbox
+  primary_owner: terra_worker
+  supporting_agents:
+  - terra_tester
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: C
+  risk: high
+  depends_on:
+  - HW09-03
+  - HW09-04
+  - HW05-04
+  allowed_paths:
+  - services/agent-gateway/src/harness/**
+  - services/collaboration/src/mappings/agents/**
+  objective: 将 Agent Run 投影到线程、工作项、审批卡片和活动时间线。
+  steps:
+  - Run/Task/Tool/Approval 状态变化产生 Event/Outbox。
+  - waiting_user 产生 Todo 和 Approval Card。
+  - approve/reject exactly-once；过期和撤权后不可执行。
+  - 取消 Run 阻止晚到工具结果复活。
+  - Artifact 只保存受控引用、hash、provenance 和 sensitivity。
+  validation:
+  - approve/reject race
+  - cancel late result
+  - restart waiting
+  - outbox replay
+  acceptance:
+  - Agent 状态与 Workspace 时间线一致
+  - 每个批准可审计
+  evidence:
+  - agent-harness-e2e.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW09-06
+  title: 实现 Workspace Agent Team UI
+  primary_owner: terra_worker
+  supporting_agents:
+  - terra_browser
+  - luna_fixtures
+  execution_mode: workspace-write
+  parallel_group: D
+  risk: medium
+  depends_on:
+  - HW09-05
+  allowed_paths:
+  - apps/workspace-web/src/capabilities/agents/**
+  objective: 提供类似群聊的 Agent 协作界面，但清晰展示任务、成员、状态、工具、审批、产物和错误。
+  steps:
+  - Agent Space 显示 Coordinator/Worker 成员和能力。
+  - 自然语言输入创建 Run 草案；用户确认目标/范围后启动。
+  - 时间线显示任务拆解、进度、Handoff、审批和结果摘要。
+  - 不展示或依赖隐藏思维链，只展示可审计计划/行动摘要。
+  - 支持取消、重试、查看证据和产物。
+  validation:
+  - component/a11y
+  - approval UI
+  - cancel/retry
+  - long run reconnect
+  acceptance:
+  - 用户能知道谁在做什么、等待什么和为何完成
+  - 无误导性“已完成”
+  evidence:
+  - agent-team-ui-evidence.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: terra
+  acceptance_agents:
+  - terra_reviewer
+  acceptance_outcome: APPROVED
+- id: HW09-07
+  title: 首个低风险 Agent：报修分诊建议
+  primary_owner: terra_worker
+  supporting_agents:
+  - luna_fixtures
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: E
+  risk: high
+  depends_on:
+  - HW09-04
+  - HW09-06
+  allowed_paths:
+  - services/agent-gateway/src/scenarios/ticket-triage/**
+  - apps/workspace-web/src/capabilities/agents/**
+  - services/tickets/src/agent-tools/**
+  objective: 用只读/建议模式验证 Agent 团队，不自动创建或改变工单。
+  steps:
+  - 输入最小化报修文本和已授权上下文。
+  - Coordinator 可分派分类、紧急度、补充问题 Worker。
+  - 输出结构化建议卡，由用户确认后通过 Ticket Service 命令执行。
+  - 模型/Provider 失败时回退规则分类或人工流程。
+  - 建立 golden dataset 和误判/漏判指标。
+  validation:
+  - golden eval
+  - provider failure
+  - malicious prompt
+  - user reject
+  - audit
+  acceptance:
+  - 未达到质量阈值保持建议模式
+  - AI 失败不影响报修留痕
+  evidence:
+  - ticket-triage-agent-eval.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW09-08
+  title: Agent Red-Team 与 Gate
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_reviewer
+  - terra_security
+  execution_mode: read-only
+  parallel_group: F
+  risk: critical
+  depends_on:
+  - HW09-03
+  - HW09-04
+  - HW09-05
+  - HW09-07
+  allowed_paths:
+  - services/agent-gateway/**
+  - packages/agent-contracts/**
+  - packages/tool-contracts/**
+  - apps/workspace-web/src/capabilities/agents/**
+  objective: 确认 Agent 能提高协作效率但无法获得超越人员和业务服务的权限。
+  steps:
+  - 红队 prompt injection、tool injection、越权、数据外泄、取消/晚到、重复审批、模型幻觉完成。
+  - 审查成本、日志、敏感 prompt 和 Provider 配置。
+  - 签发 G09。
+  validation:
+  - red-team suite
+  - full agent E2E
+  - security review
+  acceptance:
+  - P0/P1 为零
+  - 只批准低风险建议场景
+  evidence:
+  - G09-gate-decision.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-phase-gate
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_acceptance
+  - sol_architecture_security
+  - sol_phase_gate
+  acceptance_outcome: PASS_RECOMMENDED
+acceptance_policy:
+  task_routing:
+    low_medium:
+      required_agents:
+      - terra_reviewer
+      required_outcome: APPROVED
+    high:
+      required_agents:
+      - terra_reviewer
+      - sol_acceptance
+      required_sol_outcome: ACCEPT
+    critical:
+      required_agents:
+      - terra_reviewer
+      - terra_security
+      - sol_architecture_security
+      required_sol_outcome: ACCEPT
+      exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+  phase_gate:
+    required_agents:
+    - sol_acceptance
+    - sol_architecture_security
+    - sol_phase_gate
+    required_sol_phase_outcome: PASS_RECOMMENDED
+    final_decision_owner: parent_codex
+    human_decision_required: false
+  sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.

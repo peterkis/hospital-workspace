@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hospital-workspace.example/schemas/runtime-config.v1.json",
+  "title": "Hospital Workspace public runtime configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "displayName",
+    "publicOrigin",
+    "authOrigin",
+    "environment",
+    "featureFlags"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "hospital-workspace.runtime-config.v1"
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "publicOrigin": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
+    "authOrigin": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
+    "environment": {
+      "enum": [
+        "development",
+        "test",
+        "staging",
+        "production"
+      ]
+    },
+    "featureFlags": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nativeNotifications",
+        "agentWorkspace"
+      ],
+      "properties": {
+        "nativeNotifications": {
+          "type": "boolean"
+        },
+        "agentWorkspace": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

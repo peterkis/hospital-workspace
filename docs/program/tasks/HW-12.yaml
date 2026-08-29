@@ -1,0 +1,417 @@
+schemaVersion: hospital-workspace.phase.v1
+program: hospital-workspace
+targetRepository: peterkis/hospital-workspace
+legacySource:
+  mode: optional-local
+  required: false
+  absencePolicy: reimplement-from-target-contracts
+  configPath: config/local/legacy-source.yaml
+referenceSource:
+  repository: HirezmingD/Knowe-agent-groupchat
+  commit: 1e584f84734e9db55515ef4391fcb9e9c40399cd
+id: HW-12
+title: 容量、HA、灰度发布与全院生产
+goal: 基于真实试点指标完成 PostgreSQL、Redis Session、Collaboration SSE、Agent Queue、附件和客户端分发的容量与高可用设计，建立分环灰度、回滚和全院运营治理。
+dependsOn:
+- HW-11
+deliverables:
+- 真实负载与容量模型
+- PostgreSQL pool/backup/HA
+- Redis Session HA
+- Collaboration 多实例与 SSE 恢复
+- Agent/附件容量和限流
+- 客户端与 Workspace release 分环灰度
+- 生产运行责任、SLO 和 G12-PRODUCTION
+outOfScope:
+- 没有试点数据时预先承诺并发规模
+- 未经批准的跨院区多租户
+- 以增加机器掩盖慢查询或错误架构
+acceptance:
+- 容量模型来自试点真实指标
+- PostgreSQL/Redis HA 不改变数据和 Session 权威
+- Collaboration 多实例故障后可回放恢复
+- Agent/Knowledge/附件有背压、预算和降级
+- 分环发布、版本兼容、回滚和生产责任获人工批准
+gates:
+- G12-1 真实容量模型
+- G12-2 PostgreSQL/Redis HA
+- G12-3 Collaboration/Agent 横向扩展
+- G12-4 客户端版本兼容与灰度
+- G12-5 全院生产人工批准
+tasks:
+- id: HW12-01
+  title: 建立真实负载、容量与成本模型
+  primary_owner: terra_reviewer
+  supporting_agents:
+  - luna_inventory
+  - terra_tester
+  execution_mode: read-only
+  parallel_group: A
+  risk: high
+  depends_on: []
+  allowed_paths:
+  - evidence/HW-11/**
+  - docs/capacity/**
+  - scripts/load/**
+  objective: 根据试点实际测量用户、连接、事件、API、数据库、附件和 Agent 负载，不用猜测代替。
+  steps:
+  - 定义日常峰值、突发、长连接、批量事件和慢上游模型。
+  - 区分 2,000 用户目标和未来扩展。
+  - 列出假设、数据源、置信度和安全余量。
+  - 估算模型调用成本和降级策略。
+  validation:
+  - metric source audit
+  - load model reproducibility
+  acceptance:
+  - 每个容量数字有来源
+  - 人工确认假设
+  evidence:
+  - capacity-model.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW12-02
+  title: 优化 PostgreSQL Pool、查询与 HA
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_worker
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: B
+  risk: critical
+  depends_on:
+  - HW12-01
+  allowed_paths:
+  - packages/postgres-core/**
+  - packages/database-runtime/**
+  - database/**
+  - infrastructure/postgresql/**
+  - scripts/load/db/**
+  objective: 先优化连接持有、事务和查询，再选择 PgBouncer/复制/故障切换方案。
+  steps:
+  - 测量 pool wait、transaction duration、slow query 和 lock。
+  - 修复 N+1/长事务/错误连接生命周期。
+  - 验证 backup/PITR/failover/RTO/RPO。
+  - 故障切换保持 migration/repository ownership。
+  - 不通过无限增大 pool 掩盖问题。
+  validation:
+  - load/soak
+  - failover
+  - consistency
+  - backup restore
+  acceptance:
+  - 无不可控 waiter 增长
+  - 数据一致且可恢复
+  evidence:
+  - postgres-ha-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW12-03
+  title: 实现 Redis Session 与 Queue HA
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_worker
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: B
+  risk: critical
+  depends_on:
+  - HW12-01
+  allowed_paths:
+  - packages/redis-core/**
+  - infrastructure/redis/**
+  - services/gateway/src/session/**
+  - services/agent-gateway/src/queue/**
+  objective: 在不改变 Redis Session 唯一权威和 fail-closed 的前提下实现批准的 HA。
+  steps:
+  - 评估 Sentinel/Cluster/批准托管方案。
+  - 验证 Session family、revocation、authz version 和 queue claim。
+  - 故障时不回退内存/PostgreSQL。
+  - 处理 split-brain、stale replica、重认证和任务重复。
+  validation:
+  - failover
+  - session revoke
+  - split-brain prevention
+  - queue dedup
+  acceptance:
+  - 故障切换不恢复已撤销 Session
+  - Agent Task 不重复副作用
+  evidence:
+  - redis-ha-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW12-04
+  title: Collaboration 多实例与 SSE 横向扩展
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_worker
+  - terra_tester
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: C
+  risk: critical
+  depends_on:
+  - HW12-01
+  - HW12-03
+  allowed_paths:
+  - services/collaboration/**
+  - infrastructure/collaboration/**
+  - scripts/load/collaboration/**
+  objective: 让连接局部、事件共享、重放持久，实例故障不造成事件缺口或未读不一致。
+  steps:
+  - 连接由实例持有，事件/游标/Inbox 在共享持久层。
+  - PubSub/stream 只做唤醒，不是唯一事件真相。
+  - 客户端重连不依赖 sticky correctness。
+  - 杀死实例后通过 gap recovery 恢复。
+  validation:
+  - multi-instance load
+  - kill instance
+  - duplicate/gap
+  - unread consistency
+  acceptance:
+  - 实例故障后最终一致
+  - 可回滚单实例
+  evidence:
+  - collaboration-scale-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW12-05
+  title: Agent、Knowledge 与附件容量治理
+  primary_owner: terra_worker
+  supporting_agents:
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: C
+  risk: high
+  depends_on:
+  - HW12-01
+  allowed_paths:
+  - services/agent-gateway/**
+  - services/knowledge/**
+  - infrastructure/storage/**
+  - scripts/load/agent/**
+  objective: 建立并发、队列、模型预算、索引重建、附件配额和降级。
+  steps:
+  - 按用户/科室/场景设置 Agent 并发和 Token 预算。
+  - 队列背压、取消和低优先级延迟。
+  - 知识索引可重建，附件生命周期/配额/清理。
+  - 模型不可用时人工/规则降级。
+  validation:
+  - load/soak
+  - budget limit
+  - provider outage
+  - index rebuild
+  - storage quota
+  acceptance:
+  - 高负载不拖垮确定性业务
+  - 降级可见可审计
+  evidence:
+  - agent-knowledge-capacity-report.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW12-06
+  title: 实现 Server/Workspace/Desktop 分环灰度
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_worker
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: D
+  risk: critical
+  depends_on:
+  - HW12-02
+  - HW12-03
+  - HW12-04
+  allowed_paths:
+  - services/gateway/src/registry/releases/**
+  - infrastructure/releases/**
+  - apps/desktop-shell/**
+  - docs/ops/release-rings.md
+  objective: 分别管理服务端、Workspace 静态 release 和 Desktop Runtime 版本兼容，支持试点/科室/院区分环。
+  steps:
+  - Capability/Workspace release 声明 min/max Desktop Runtime 和 API contract version。
+  - Gateway 按 ring 选择 approved release。
+  - 不兼容组合 fail-closed 并提供升级提示/浏览器降级入口。
+  - 每环有观察期、自动停止条件和回滚。
+  validation:
+  - version skew
+  - ring rollout
+  - rollback
+  - offline/stale client
+  acceptance:
+  - 不可兼容版本不被运行
+  - 回滚不需重装全部组件
+  evidence:
+  - release-ring-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW12-07
+  title: 生产 SLO、责任与持续治理
+  primary_owner: luna_docs
+  supporting_agents:
+  - terra_reviewer
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: E
+  risk: high
+  depends_on:
+  - HW12-01
+  allowed_paths:
+  - docs/ops/**
+  - docs/governance/**
+  - infrastructure/monitoring/**
+  objective: 明确 1～2 人团队可持续维护的值守、升级、审计、风险、数据保留和变更流程。
+  steps:
+  - 定义服务/客户端 SLO、告警优先级和响应责任。
+  - 制定月度容量、权限、证书、依赖、模型和知识审校复核。
+  - 高风险变更 owner/reviewer 分离。
+  - 记录停机和 Web fallback 策略。
+  validation:
+  - runbook tabletop
+  - on-call scenario
+  - governance audit
+  acceptance:
+  - 运行责任明确
+  - 计划不依赖单个 Agent 或个人隐性知识
+  evidence:
+  - production-operations-charter.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW12-08
+  title: G12-PRODUCTION 最终人工决议
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_reviewer
+  - terra_security
+  execution_mode: read-only
+  parallel_group: F
+  risk: critical
+  depends_on:
+  - HW12-02
+  - HW12-03
+  - HW12-04
+  - HW12-05
+  - HW12-06
+  - HW12-07
+  allowed_paths:
+  - evidence/**
+  - docs/program/**
+  - docs/ops/**
+  - docs/capacity/**
+  objective: 核对所有试点、容量、HA、发布、恢复、安全和运营证据，给出全院生产 GO/NO-GO 建议。
+  steps:
+  - 关闭所有 expansion blockers。
+  - 确认压测代表真实模型而非空转。
+  - 确认 HA 未改变 Session/业务权威。
+  - 人工签署并定义推广环和回滚条件。
+  validation:
+  - evidence audit
+  - independent security/operations review
+  acceptance:
+  - P0/P1 为零
+  - 医院授权负责人签署后方可全院推广
+  evidence:
+  - G12-PRODUCTION-gate-decision.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-phase-gate
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_acceptance
+  - sol_architecture_security
+  - sol_phase_gate
+  acceptance_outcome: PASS_RECOMMENDED
+acceptance_policy:
+  task_routing:
+    low_medium:
+      required_agents:
+      - terra_reviewer
+      required_outcome: APPROVED
+    high:
+      required_agents:
+      - terra_reviewer
+      - sol_acceptance
+      required_sol_outcome: ACCEPT
+    critical:
+      required_agents:
+      - terra_reviewer
+      - terra_security
+      - sol_architecture_security
+      required_sol_outcome: ACCEPT
+      exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+  phase_gate:
+    required_agents:
+    - sol_acceptance
+    - sol_architecture_security
+    - sol_phase_gate
+    required_sol_phase_outcome: PASS_RECOMMENDED
+    final_decision_owner: parent_codex
+    human_decision_required: true
+  sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.

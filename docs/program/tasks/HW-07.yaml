@@ -1,0 +1,360 @@
+schemaVersion: hospital-workspace.phase.v1
+program: hospital-workspace
+targetRepository: peterkis/hospital-workspace
+legacySource:
+  mode: optional-local
+  required: false
+  absencePolicy: reimplement-from-target-contracts
+  configPath: config/local/legacy-source.yaml
+referenceSource:
+  repository: HirezmingD/Knowe-agent-groupchat
+  commit: 1e584f84734e9db55515ef4391fcb9e9c40399cd
+id: HW-07
+title: 第二个垂直切片：确费与强确定性短流程
+goal: 以确费验证高频、短事务、金额与患者最小信息、严格权限、幂等确认/取消和卡片单击处理，证明聊天界面不会弱化确定性业务控制。
+dependsOn:
+- HW-05
+- HW-06
+deliverables:
+- '`services/fee` 独立领域服务'
+- '`fee-contracts`、金额/时间语义'
+- HIS/Hosp Access Adapter
+- Fee Outbox/Event/WorkItem mapping
+- Workspace Fee Capability
+- 并发、重复点击、过期、权限和脱敏 E2E
+outOfScope:
+- 替换 HIS 财务真相
+- 离线确费
+- Agent 自动确认费用
+- 全量费用报表
+acceptance:
+- Money、HIS authoritative state 和平台回执无歧义
+- 重复/并发确认或取消不产生重复业务写入
+- HIS unknown result 被诚实保留并可核对
+- 患者信息最小化且不进入通知/日志
+- 卡片高频处理不绕过服务端权限和状态机
+gates:
+- G07-1 Fee 领域与 HIS 边界
+- G07-2 金额/状态/幂等
+- G07-3 患者最小化与权限
+- G07-4 卡片高频体验
+- G07-5 事务/Outbox/回写恢复
+tasks:
+- id: HW07-01
+  title: 审计并抽取 Legacy Fee Domain
+  primary_owner: terra_migrator
+  supporting_agents:
+  - luna_explorer
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: A
+  risk: high
+  depends_on: []
+  allowed_paths:
+  - docs/migration/fee/**
+  - services/fee/**
+  - packages/fee-contracts/**
+  objective: 按目标 Fee 契约重新实现业务规则、HIS Adapter 与测试；若配置可选旧源，仅作需求核对和算法提取，不复制 Next 页面、Radix 组件、Mock 数据与旧 Hub UI。
+  steps:
+  - 绘制 list/detail/confirm/cancel/error 调用链。
+  - 区分 authoritative HIS 状态、平台记录和 UI-only formatting。
+  - 冻结金额、业务号、患者最小字段和时间语义。
+  - 登记迁移文件与拒绝文件。
+  validation:
+  - source manifest
+  - behavior fixtures
+  - no Next/UI import
+  acceptance:
+  - 领域需求可追溯
+  - 新服务无旧页面依赖
+  evidence:
+  - fee-migration-plan.yaml
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW07-02
+  title: 冻结 Fee Contracts 与状态机
+  primary_owner: terra_contracts
+  supporting_agents:
+  - luna_fixtures
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: A
+  risk: high
+  depends_on:
+  - HW07-01
+  allowed_paths:
+  - packages/fee-contracts/**
+  - packages/card-protocol/**
+  - packages/hub-contracts/**
+  objective: 定义 Fee Item/Batch/Confirmation、Money、患者摘要、命令、事件、错误和卡片。
+  steps:
+  - 状态覆盖 pending/confirming/confirmed/cancelling/cancelled/rejected/expired/failed。
+  - Money 使用整数最小货币单位或明确 Decimal 语义，禁止浮点。
+  - 命令带 expectedVersion/idempotency/HIS correlation。
+  - 患者姓名等敏感字段不进入通知摘要。
+  - 定义 HIS 已处理、超时未知结果和重复提交 fixtures。
+  validation:
+  - money/time tests
+  - state table
+  - idempotency
+  - redaction
+  acceptance:
+  - 金额与状态无歧义
+  - 未知结果不被前端视为成功
+  evidence:
+  - fee-contract-snapshot.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW07-03
+  title: 实现 Fee Service 与 Hosp Access Adapter
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_worker
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: B
+  risk: critical
+  depends_on:
+  - HW07-02
+  allowed_paths:
+  - services/fee/**
+  - database/prisma/models/fee.prisma
+  - packages/hosp-contracts/**
+  objective: 实现独立确费服务，HIS 访问全部经过受控 Hosp Access/Adapter，平台不伪造 HIS 真相。
+  steps:
+  - 创建新 fee schema 和 migration。
+  - 实现 list/detail/confirm/cancel use cases 与 repository。
+  - 上游请求使用 correlation/idempotency 并分类 timeout/unknown/definitive failure。
+  - 平台状态保存命令和回执，不替代 HIS authoritative status。
+  - 服务端权限/Scope/患者最小化和审计。
+  validation:
+  - service integration
+  - fake HIS
+  - timeout/unknown
+  - permission/scope
+  - migration rebuild
+  acceptance:
+  - Workspace 不直接调用 HIS
+  - 服务重试不重复确费
+  evidence:
+  - fee-service-report.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW07-04
+  title: 实现 Fee Outbox 与 WorkItem Mapping
+  primary_owner: terra_worker
+  supporting_agents:
+  - terra_tester
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: B
+  risk: high
+  depends_on:
+  - HW07-03
+  allowed_paths:
+  - services/fee/src/events/**
+  - services/collaboration/src/mappings/fee/**
+  objective: 将待确费、确认、取消、冲突、过期和未知结果投影到人员待办和时间线。
+  steps:
+  - 业务记录与 Outbox 同事务。
+  - 待办 recipient 按科室/角色/本人 Scope 解析。
+  - confirmed/cancelled 关闭对应 Todo；unknown 保持待核查。
+  - 重放不重复创建工作项。
+  validation:
+  - outbox crash
+  - recipient scope
+  - replay
+  - unknown result
+  acceptance:
+  - 无 ghost confirmation
+  - 工作项与 HIS/平台状态可解释
+  evidence:
+  - fee-event-workitem-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW07-05
+  title: 实现 Workspace Fee Capability
+  primary_owner: terra_worker
+  supporting_agents:
+  - terra_browser
+  - luna_fixtures
+  execution_mode: workspace-write
+  parallel_group: C
+  risk: medium
+  depends_on:
+  - HW07-02
+  - HW07-04
+  allowed_paths:
+  - apps/workspace-web/src/capabilities/fee/**
+  objective: 提供待确费队列、单笔卡片、批次/明细 Canvas 和确认/取消动作。
+  steps:
+  - 默认卡片只显示最小必要患者和金额摘要。
+  - 详情按权限懒加载并在离开时清除内存引用。
+  - 点击后显示 pending，accepted event 后才显示完成。
+  - 双击、过期、409、HIS unknown 有明确状态。
+  - 支持键盘快速处理但高风险动作可二次确认。
+  validation:
+  - component/a11y
+  - double click
+  - 403/409/unknown
+  - sensitive memory/log scan
+  acceptance:
+  - 高频操作步骤减少
+  - 不会因聊天文本“确认”直接写业务
+  evidence:
+  - fee-capability-evidence.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: terra
+  acceptance_agents:
+  - terra_reviewer
+  acceptance_outcome: APPROVED
+- id: HW07-06
+  title: 确费安全、并发与恢复 E2E
+  primary_owner: terra_tester
+  supporting_agents:
+  - terra_browser
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: D
+  risk: critical
+  depends_on:
+  - HW07-03
+  - HW07-05
+  allowed_paths:
+  - services/fee/test/**
+  - apps/workspace-web/e2e/fee/**
+  - evidence/HW-07/**
+  objective: 验证重复点击、并发用户、HIS 超时、Hub 中断、切换人员和撤权。
+  steps:
+  - 两个用户同时处理同一费用。
+  - HIS 成功但响应丢失、平台重试、最终核对。
+  - Outbox/Hub 中断后恢复。
+  - 锁屏/通知/日志无敏感泄漏。
+  validation:
+  - race tests
+  - fake HIS fault matrix
+  - replay
+  - privacy scan
+  acceptance:
+  - 不重复收费/确认
+  - 未知状态诚实保留
+  - 最终一致
+  evidence:
+  - fee-e2e-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW07-07
+  title: Fee Vertical Slice Gate
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_reviewer
+  - terra_security
+  execution_mode: read-only
+  parallel_group: E
+  risk: critical
+  depends_on:
+  - HW07-03
+  - HW07-04
+  - HW07-06
+  allowed_paths:
+  - services/fee/**
+  - apps/workspace-web/src/capabilities/fee/**
+  - services/collaboration/src/mappings/fee/**
+  objective: 确认新交互提高效率但没有牺牲财务和患者安全。
+  steps:
+  - 复核 Money、HIS 边界、幂等、权限、脱敏、UI 和恢复。
+  - 签发 G07。
+  validation:
+  - full fee suite
+  - security review
+  - workflow usability
+  acceptance:
+  - P0/P1 为零
+  - 允许进入交班和轻应用
+  evidence:
+  - G07-gate-decision.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-phase-gate
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_acceptance
+  - sol_phase_gate
+  acceptance_outcome: PASS_RECOMMENDED
+acceptance_policy:
+  task_routing:
+    low_medium:
+      required_agents:
+      - terra_reviewer
+      required_outcome: APPROVED
+    high:
+      required_agents:
+      - terra_reviewer
+      - sol_acceptance
+      required_sol_outcome: ACCEPT
+    critical:
+      required_agents:
+      - terra_reviewer
+      - terra_security
+      - sol_architecture_security
+      required_sol_outcome: ACCEPT
+      exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+  phase_gate:
+    required_agents:
+    - sol_acceptance
+    - sol_phase_gate
+    required_sol_phase_outcome: PASS_RECOMMENDED
+    final_decision_owner: parent_codex
+    human_decision_required: false
+  sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.

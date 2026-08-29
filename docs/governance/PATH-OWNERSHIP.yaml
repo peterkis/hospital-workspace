@@ -1,0 +1,136 @@
+schemaVersion: hospital-workspace.path-ownership.v1
+rules:
+- paths:
+  - .gitignore
+  - PUBLIC-DATA-BOUNDARY.md
+  - SECURITY.md
+  - config/schema/**
+  - config/examples/**
+  - tools/validate_repository.py
+  ownerRole: public-boundary-owner
+  reviewRoles:
+  - security-reviewer
+  - architecture-reviewer
+  risk: critical
+- paths:
+  - AGENTS.md
+  - .codex/**
+  - docs/program/**
+  ownerRole: program-owner
+  reviewRoles:
+  - architecture-reviewer
+  risk: high
+- paths:
+  - apps/desktop-shell/**
+  ownerRole: desktop-security-owner
+  reviewRoles:
+  - security-reviewer
+  - architecture-reviewer
+  risk: critical
+- paths:
+  - apps/workspace-web/**
+  ownerRole: workspace-frontend-owner
+  reviewRoles:
+  - frontend-reviewer
+  risk: high
+- paths:
+  - services/gateway/**
+  - packages/identity-*/**
+  - packages/authz-core/**
+  ownerRole: identity-access-owner
+  reviewRoles:
+  - security-reviewer
+  risk: critical
+- paths:
+  - services/collaboration/**
+  - packages/hub-*/**
+  - packages/workitem-*/**
+  - packages/harness-*/**
+  ownerRole: collaboration-owner
+  reviewRoles:
+  - event-consistency-reviewer
+  risk: critical
+- paths:
+  - services/agent-gateway/**
+  - packages/agent-*/**
+  - packages/tool-*/**
+  ownerRole: agent-platform-owner
+  reviewRoles:
+  - agent-security-reviewer
+  risk: critical
+- paths:
+  - services/knowledge/**
+  - packages/knowledge-*/**
+  ownerRole: knowledge-governance-owner
+  reviewRoles:
+  - knowledge-reviewer
+  - security-reviewer
+  risk: high
+- paths:
+  - services/tickets/**
+  - packages/ticket-*/**
+  ownerRole: ticket-domain-owner
+  reviewRoles:
+  - domain-reviewer
+  risk: high
+- paths:
+  - services/fee/**
+  - packages/fee-*/**
+  ownerRole: fee-domain-owner
+  reviewRoles:
+  - financial-safety-reviewer
+  risk: critical
+- paths:
+  - services/handover/**
+  - packages/handover-*/**
+  ownerRole: handover-domain-owner
+  reviewRoles:
+  - clinical-privacy-reviewer
+  risk: critical
+- paths:
+  - services/hosp-access/**
+  - packages/hosp-*/**
+  ownerRole: hosp-access-owner
+  reviewRoles:
+  - integration-security-reviewer
+  risk: high
+- paths:
+  - database/**
+  - prisma.config.ts
+  - packages/database-runtime/**
+  - packages/postgres-core/**
+  ownerRole: database-owner
+  reviewRoles:
+  - data-reviewer
+  - security-reviewer
+  risk: critical
+- paths:
+  - packages/*-contracts/**
+  - packages/contracts-core/**
+  - packages/card-protocol/**
+  ownerRole: contract-owner
+  reviewRoles:
+  - contract-reviewer
+  risk: high
+- paths:
+  - infrastructure/**
+  - scripts/release/**
+  - scripts/ops/**
+  ownerRole: release-operations-owner
+  reviewRoles:
+  - operations-reviewer
+  - security-reviewer
+  risk: critical
+- paths:
+  - .github/workflows/**
+  - package.json
+  - pnpm-workspace.yaml
+  - pnpm-lock.yaml
+  ownerRole: toolchain-owner
+  reviewRoles:
+  - supply-chain-reviewer
+  risk: critical
+constraints:
+  ownerAndReviewerMustDiffer: true
+  criticalRequiresTwoReviewRoles: true
+  unmatchedCriticalPathFails: true

@@ -1,0 +1,422 @@
+schemaVersion: hospital-workspace.phase.v1
+program: hospital-workspace
+targetRepository: peterkis/hospital-workspace
+legacySource:
+  mode: optional-local
+  required: false
+  absencePolicy: reimplement-from-target-contracts
+  configPath: config/local/legacy-source.yaml
+referenceSource:
+  repository: HirezmingD/Knowe-agent-groupchat
+  commit: 1e584f84734e9db55515ef4391fcb9e9c40399cd
+id: HW-11
+title: 灵动岛、系统通知、发布硬化与受控试点
+goal: 在 Workspace 主链稳定后，通过一个最小、单向、强校验的 Tauri Surface Bridge 统一托盘、Windows 通知和灵动岛；完成不可变服务端制品、MSI、浏览器/桌面 E2E、无外网发布和受控试点。
+dependsOn:
+- HW-06
+- HW-07
+- HW-08
+- HW-09
+- HW-10
+deliverables:
+- '`surface-contracts` 与最小 Native Bridge ADR'
+- Tray/Toast/Island 统一投影与 Deep Link
+- Windows MSI 安装/升级/卸载/回滚
+- 服务端 immutable release 与 Nginx/systemd
+- Browser/Desktop/Anolis 真实验收
+- 监控、备份、故障演练和运行手册
+- G11-PILOT 决议
+outOfScope:
+- 通用 Tauri API
+- 通知显示患者敏感正文
+- 自动全院发布
+- 未完成容量/HA 前的生产承诺
+acceptance:
+- Native Bridge 只有一个最小命令且 exact caller/Rust validation
+- Tray/Toast/Island 不暴露患者和财务敏感正文
+- MSI、WebView2、不可变服务端制品和回滚有真实证据
+- Browser/Desktop/Anolis 环境声明真实
+- 安全、恢复、运维和用户体验满足受控试点
+gates:
+- G11-1 Native Bridge 最小权限
+- G11-2 锁屏/共享终端通知隐私
+- G11-3 MSI 与 WebView2 生命周期
+- G11-4 Server immutable/no-egress release
+- G11-5 故障恢复与受控试点
+tasks:
+- id: HW11-01
+  title: 定义 Surface Event 与隐私策略
+  primary_owner: terra_contracts
+  supporting_agents:
+  - luna_fixtures
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: A
+  risk: critical
+  depends_on: []
+  allowed_paths:
+  - packages/surface-contracts/**
+  - docs/security/**
+  objective: 定义可投影到原生表面的最小字段、敏感度、过期、去重和 Deep Link。
+  steps:
+  - 仅允许 eventId/type/priority/title/summary/progress/deepLink/expiresAt。
+  - clinical/financial sensitivity 强制 generic summary。
+  - 禁止患者名、住院号、诊断、证件、详细费用和任意 HTML/URL。
+  - 定义锁屏、未登录、换人和 stale event 行为。
+  validation:
+  - PHI/PII fixtures
+  - oversize
+  - deep link
+  - unknown fields
+  acceptance:
+  - 任意未验证 payload 被拒
+  - Surface 不成为业务真相
+  evidence:
+  - surface-contract-snapshot.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW11-02
+  title: 接受并实现最小 Workspace-only Native Bridge
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_worker
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: B
+  risk: critical
+  depends_on:
+  - HW11-01
+  - HW03-04
+  allowed_paths:
+  - docs/adr/**
+  - apps/desktop-shell/src-tauri/**
+  - apps/desktop-shell/src-tauri/capabilities/**
+  objective: 新增唯一受控 `publish_surface_event`/等价命令，精确绑定 Workspace label/origin/path，并在 Rust 端重新验证。
+  steps:
+  - 先接受独立 ADR，列出 threat model、rollback 和 kill switch。
+  - Legacy/其他 remote webview 仍为 permission none。
+  - Rust 强类型解析、长度/枚举/敏感度/deepLink 验证。
+  - eventId 去重、速率限制、过期和持久审计。
+  - 禁止通用 window/fs/http/shell/process/clipboard 能力。
+  validation:
+  - wrong caller
+  - legacy webview
+  - fuzz
+  - replay
+  - audit failure
+  - kill switch
+  acceptance:
+  - 任何 guard/audit 失败 fail-closed
+  - 桥接不能执行任意命令
+  evidence:
+  - native-bridge-security-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW11-03
+  title: 实现 Tray、Windows Toast 与 Island Projection
+  primary_owner: terra_worker
+  supporting_agents:
+  - terra_tester
+  - terra_browser
+  execution_mode: workspace-write
+  parallel_group: C
+  risk: high
+  depends_on:
+  - HW11-02
+  allowed_paths:
+  - apps/desktop-shell/src-tauri/**
+  - apps/workspace-web/src/platform/surfaces/**
+  objective: 将同一业务事件投影到三种表面，点击后安全唤起对应工作项。
+  steps:
+  - Rust 只处理通用显示，不理解 Fee/Ticket/Handover 业务字段。
+  - 同 eventId 更新/去重，不重复轰炸用户。
+  - 锁屏/非当前用户降级或隐藏。
+  - 点击通过 validated deep link，重新检查 Session/permission。
+  - Workspace 前台时可抑制冗余系统通知。
+  validation:
+  - surface mapping
+  - lock/switch user
+  - click route
+  - duplicate/update
+  - rate limit
+  acceptance:
+  - 三表面状态一致
+  - 跨用户零残留
+  evidence:
+  - native-surface-evidence.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW11-04
+  title: 构建 Desktop MSI 与 WebView2 发布闭包
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: D
+  risk: critical
+  depends_on:
+  - HW03-08
+  - HW11-03
+  allowed_paths:
+  - apps/desktop-shell/**
+  - infrastructure/windows/**
+  - scripts/release/desktop/**
+  objective: 生成 x64 per-machine MSI，验证 WebView2 最低版本、安装、升级、卸载、回滚和 Profile 清理。
+  steps:
+  - 固定 product/upgrade code、版本和 source/lock/artifact hash。
+  - WebView2 Evergreen/离线安装策略明确。
+  - 安装/升级不保留错误用户 Profile 或过期 binding。
+  - 卸载不删除服务器数据；本地缓存/Profile 按政策清理。
+  - 不将 Linux cargo check 冒充真实 Windows 验收。
+  validation:
+  - Windows build
+  - MSI install/upgrade/downgrade/uninstall
+  - WebView2 missing/old
+  - rollback
+  acceptance:
+  - 产物可重建且 hash 可验证
+  - 旧版本可回滚
+  evidence:
+  - MSI-lifecycle-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW11-05
+  title: 构建 Server Immutable Release 与 No-Egress 安装
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_tester
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: D
+  risk: critical
+  depends_on:
+  - HW10-08
+  allowed_paths:
+  - infrastructure/nginx/**
+  - infrastructure/systemd/**
+  - scripts/release/server/**
+  - docs/ops/**
+  objective: 为 Gateway、Collaboration、Hosp Access、Tickets、Fee、Handover、Agent、Knowledge 和 Workspace 静态制品建立不可变发布与回滚。
+  steps:
+  - 每个 bundle 绑定 commit/lock/files/ABI/Prisma/health/stop。
+  - 目标机无 registry egress、不在线安装依赖。
+  - systemd/Nginx 指针只在 health 通过后切换。
+  - previous release 回滚不重建数据库；迁移有独立恢复策略。
+  - Secret scan、无逃逸 symlink/绝对路径和文件 mode 校验。
+  validation:
+  - offline assemble
+  - bundle closure
+  - health/stop
+  - rollback
+  - secret/symlink scan
+  acceptance:
+  - 删除构建机 store 后仍可运行
+  - 各服务可独立回滚且版本兼容矩阵明确
+  evidence:
+  - server-release-manifest-set.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW11-06
+  title: 建立监控、备份、恢复与运行手册
+  primary_owner: terra_worker
+  supporting_agents:
+  - luna_docs
+  - terra_tester
+  execution_mode: workspace-write
+  parallel_group: E
+  risk: high
+  depends_on:
+  - HW11-05
+  allowed_paths:
+  - packages/observability/**
+  - docs/ops/**
+  - scripts/ops/**
+  - infrastructure/monitoring/**
+  objective: 让 1～2 人团队能定位 Session、SSE、Outbox、DB、Redis、Agent、Desktop 和业务故障。
+  steps:
+  - 定义 SLI/SLO、dashboard、alert 和 correlation fields。
+  - 覆盖 Session failure、SSE lag、Outbox age、projection lag、DB pool、Redis、Agent queue、desktop crash。
+  - 备份/恢复 PostgreSQL、配置、知识附件和 release registry。
+  - 编写证书、WebView2、MSI、Nginx/systemd、rollback 手册。
+  - 执行桌面演练，不只写文档。
+  validation:
+  - alert fixtures
+  - backup restore
+  - runbook drill
+  - failure triage
+  acceptance:
+  - 核心故障有可操作手册和恢复证据
+  - 告警不包含敏感正文
+  evidence:
+  - ops-readiness-report.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW11-07
+  title: 真实 Browser/Desktop/Anolis 受控试点验收
+  primary_owner: terra_tester
+  supporting_agents:
+  - terra_browser
+  - terra_security
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: F
+  risk: critical
+  depends_on:
+  - HW11-04
+  - HW11-05
+  - HW11-06
+  allowed_paths:
+  - scripts/acceptance/pilot/**
+  - evidence/HW-11/**
+  - docs/ops/**
+  objective: 在授权环境验证信息科、一个临床病区和工程师组的真实主链路。
+  steps:
+  - Windows Chrome + Tauri/WebView2 使用同一 BFF/Session/Workspace release。
+  - 两台目标 Anolis 或批准生产相似主机执行 no-egress、systemd/Nginx、rollback。
+  - 验证 Ticket、Fee、Handover、Agent 建议、Knowledge synthetic 场景。
+  - 执行 Redis/Postgres/Hub/网络/证书/客户端升级故障演练。
+  - 收集可用性、步骤减少、延迟、内存、崩溃和用户反馈。
+  validation:
+  - real environment receipts
+  - failure matrix
+  - privacy scan
+  - usability metrics
+  acceptance:
+  - 不得以 WSL2/Mock 替代声明
+  - P0=0，P1=0 才可建议试点
+  evidence:
+  - pilot-dossier.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW11-08
+  title: G11-PILOT 人工决议
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_reviewer
+  - terra_security
+  execution_mode: read-only
+  parallel_group: G
+  risk: critical
+  depends_on:
+  - HW11-02
+  - HW11-04
+  - HW11-05
+  - HW11-07
+  allowed_paths:
+  - evidence/HW-11/**
+  - docs/program/**
+  - docs/ops/**
+  objective: 综合安全、发布、恢复、功能、性能和用户体验证据，给出 GO/NO-GO 建议，最终由医院负责人签署。
+  steps:
+  - 核对每个 required evidence 与环境。
+  - 确认 inherited risks、owner、期限和回退。
+  - 签发 PASS/CONDITIONAL/BLOCKED；安全和数据问题不能 CONDITIONAL。
+  validation:
+  - evidence audit
+  - independent review
+  acceptance:
+  - 人工签署前不推广
+  - G11 不等于全院生产批准
+  evidence:
+  - G11-PILOT-gate-decision.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-phase-gate
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  - sol_phase_gate
+  acceptance_outcome: PASS_RECOMMENDED
+acceptance_policy:
+  task_routing:
+    low_medium:
+      required_agents:
+      - terra_reviewer
+      required_outcome: APPROVED
+    high:
+      required_agents:
+      - terra_reviewer
+      - sol_acceptance
+      required_sol_outcome: ACCEPT
+    critical:
+      required_agents:
+      - terra_reviewer
+      - terra_security
+      - sol_architecture_security
+      required_sol_outcome: ACCEPT
+      exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+  phase_gate:
+    required_agents:
+    - sol_architecture_security
+    - sol_phase_gate
+    required_sol_phase_outcome: PASS_RECOMMENDED
+    final_decision_owner: parent_codex
+    human_decision_required: true
+  sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.

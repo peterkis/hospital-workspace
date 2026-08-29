@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "hospital-workspace.package-baseline.v1",
+  "generatedAt": "2026-08-29T00:00:00+09:00",
+  "targetRepository": {
+    "repository": "peterkis/hospital-workspace",
+    "visibility": "public",
+    "stateAtPackageGeneration": "not-created-or-not-verified",
+    "strategy": "greenfield-public-single-active-repository"
+  },
+  "legacySource": {
+    "mode": "optional-local",
+    "configPath": "config/local/legacy-source.yaml",
+    "requiredForBuild": false,
+    "runtimeDependency": false,
+    "gitSubmodule": false,
+    "absencePolicy": "reimplement-from-target-contracts"
+  },
+  "referenceSource": {
+    "repository": "HirezmingD/Knowe-agent-groupchat",
+    "branch": "main",
+    "commit": "1e584f84734e9db55515ef4391fcb9e9c40399cd",
+    "role": "interaction-and-mechanism-reference-only",
+    "codeCopyDefault": false
+  },
+  "toolchainIntent": {
+    "node": "24.18.0",
+    "pnpm": "11.17.0",
+    "language": [
+      "TypeScript",
+      "Rust"
+    ],
+    "frontend": "React + Vite",
+    "desktop": "Tauri 2 + WebView2",
+    "server": "Fastify + Node.js",
+    "database": "PostgreSQL 18 + Prisma 7",
+    "session": "Redis runtime authority",
+    "liveTransport": "SSE first with durable recovery"
+  },
+  "program": {
+    "phaseCount": 13,
+    "workPackageCount": 103,
+    "phaseIds": [
+      "HW-00",
+      "HW-01",
+      "HW-02",
+      "HW-03",
+      "HW-04",
+      "HW-05",
+      "HW-06",
+      "HW-07",
+      "HW-08",
+      "HW-09",
+      "HW-10",
+      "HW-11",
+      "HW-12"
+    ]
+  },
+  "sourceOfTruth": [
+    "AGENTS.md",
+    "docs/architecture/TARGET-ARCHITECTURE.md",
+    "docs/program/ROADMAP.md",
+    "docs/program/phases/",
+    "docs/program/tasks/",
+    "docs/governance/",
+    "docs/migration/LEGACY-SOURCE-MANIFEST.yaml"
+  ],
+  "acceptanceStrategy": {
+    "luna": "narrow inventory/docs/fixtures",
+    "terra": "implementation/testing/first review",
+    "sol": {
+      "taskAcceptance": "gpt-5.6-sol/xhigh",
+      "architectureSecurity": "gpt-5.6-sol/max",
+      "phaseGate": "gpt-5.6-sol/max"
+    },
+    "finalEngineeringDecision": "parent_codex",
+    "pilotProductionDecision": "human owner"
+  }
+}

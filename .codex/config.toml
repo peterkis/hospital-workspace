@@ -1,0 +1,9 @@
+[agents]
+enabled = true
+max_concurrent_threads_per_session = 8
+default_subagent_model = "gpt-5.6-terra"
+default_subagent_reasoning_effort = "medium"
+interrupt_message = true
+
+# Sol agents are pinned individually and invoked only by task/phase acceptance policy.
+# Do not make Sol the default subagent; required Sol unavailability blocks acceptance.

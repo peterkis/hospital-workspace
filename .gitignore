@@ -1,0 +1,78 @@
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.*.example
+*.local
+*.local.*
+
+# Hospital-specific runtime configuration
+config/local/
+config/private/
+runtime-config/
+deploy/private/
+deploy/targets/
+branding/private/
+secrets/
+private/
+
+# Certificates, keys and signing material
+certificates/local/
+certificates/private/
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.kdb
+*.csr
+*.srl
+*.p7b
+*.p7c
+*.der
+*.cer
+*.crt
+*.pem
+!certificates/test-public/
+!certificates/test-public/**
+!**/*.example.pem
+!**/*.example.crt
+
+# Runtime data and private evidence
+tmp/
+logs/
+backups/
+dumps/
+evidence/private/
+*.log
+*.rdb
+*.aof
+appendonlydir/
+
+# Databases and state
+*.sqlite
+*.sqlite3
+*.db
+*.dump
+*.backup
+
+# Build and test outputs
+node_modules/
+.pnpm-store/
+.next/
+dist/
+build/
+out/
+coverage/
+test-results/
+playwright-report/
+target/
+generated/
+
+# Local IDE and OS state
+.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo

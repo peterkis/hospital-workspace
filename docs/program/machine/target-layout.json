@@ -1,0 +1,121 @@
+{
+  "schemaVersion": "hospital-workspace.target-layout.v1",
+  "root": "hospital-workspace",
+  "principles": [
+    "greenfield public single active repository with private runtime configuration externalized",
+    "optional legacy checkout is read-only reference, never required and never a runtime dependency",
+    "person-event-workitem-context is the product model",
+    "one Workspace web build for browser and desktop",
+    "domain services remain authoritative and separate",
+    "server-side controlled Agent Gateway",
+    "new database migration lineage"
+  ],
+  "initialFoundationPaths": [
+    {
+      "path": "apps/workspace-web",
+      "kind": "react-vite-same-origin-spa",
+      "phase": "HW-03"
+    },
+    {
+      "path": "apps/desktop-shell",
+      "kind": "tauri-trusted-shell",
+      "phase": "HW-03"
+    },
+    {
+      "path": "services/gateway",
+      "kind": "identity-session-bff",
+      "phase": "HW-02"
+    },
+    {
+      "path": "services/collaboration",
+      "kind": "events-inbox-todos-workitems-harness",
+      "phase": "HW-04/HW-05"
+    },
+    {
+      "path": "services/hosp-access",
+      "kind": "upstream-anti-corruption",
+      "phase": "HW-02"
+    },
+    {
+      "path": "packages/contracts-core",
+      "kind": "pure-contract",
+      "phase": "HW-01"
+    },
+    {
+      "path": "packages/authz-core",
+      "kind": "pure-policy-kernel",
+      "phase": "HW-02"
+    },
+    {
+      "path": "packages/workspace-contracts",
+      "kind": "pure-contract",
+      "phase": "HW-01"
+    },
+    {
+      "path": "packages/workspace-sdk",
+      "kind": "browser-sdk",
+      "phase": "HW-03/HW-04"
+    },
+    {
+      "path": "packages/workspace-ui",
+      "kind": "design-system",
+      "phase": "HW-03"
+    },
+    {
+      "path": "packages/postgres-core",
+      "kind": "server-infrastructure",
+      "phase": "HW-01"
+    },
+    {
+      "path": "packages/redis-core",
+      "kind": "server-infrastructure",
+      "phase": "HW-01/HW-02"
+    },
+    {
+      "path": "packages/time-core",
+      "kind": "pure-time-kernel",
+      "phase": "HW-01"
+    },
+    {
+      "path": "database",
+      "kind": "new-prisma-migration-lineage",
+      "phase": "HW-01"
+    },
+    {
+      "path": "infrastructure",
+      "kind": "release-deployment",
+      "phase": "HW-11/HW-12"
+    }
+  ],
+  "laterDomainPaths": [
+    {
+      "path": "services/tickets",
+      "phase": "HW-06"
+    },
+    {
+      "path": "services/fee",
+      "phase": "HW-07"
+    },
+    {
+      "path": "services/handover",
+      "phase": "HW-08"
+    },
+    {
+      "path": "services/agent-gateway",
+      "phase": "HW-09"
+    },
+    {
+      "path": "services/knowledge",
+      "phase": "HW-10"
+    }
+  ],
+  "forbiddenAtFoundation": [
+    "legacy Next.js applications",
+    "legacy root Prisma schema/migrations/seeds",
+    "legacy Phase scripts/evidence/issues",
+    "Electron or Python local Agent backend",
+    "hub-next",
+    "generic Tauri native plugins",
+    "generic Agent shell/sql/http/filesystem/browser tools"
+  ]
+}

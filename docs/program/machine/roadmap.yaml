@@ -1,0 +1,732 @@
+schemaVersion: hospital-workspace.roadmap.v1.1
+program: hospital-workspace-greenfield
+targetRepository: peterkis/hospital-workspace
+legacySourceMode: optional-local
+referenceCommit: 1e584f84734e9db55515ef4391fcb9e9c40399cd
+totalPhases: 13
+totalWorkPackages: 103
+customAgents:
+  luna: 4
+  terra: 7
+  sol: 3
+  total: 14
+phases:
+- id: HW-00
+  title: 新仓创建与 Clean Foundation
+  slug: clean-foundation
+  goal: 建立一个没有旧 Phase 脚本、旧 Next.js 门户、旧数据库迁移和旧 Issues 负担的公共 monorepo，并冻结产品使命、工具链、依赖方向、代码所有权、迁移来源与第一组 ADR。
+  dependsOn: []
+  deliverables:
+  - 公共仓库 `peterkis/hospital-workspace`
+  - 根 `AGENTS.md`、`.codex/` Luna/Terra/Sol 子代理配置
+  - Node/pnpm/TypeScript 基础、唯一 lockfile、基础 CI
+  - 目标目录骨架与依赖边界检查器
+  - Legacy Source Manifest 与 Knowe Adoption Matrix
+  - ADR-0001～ADR-0007
+  - F0 Clean Foundation Gate 证据
+  gates:
+  - G00-1 新仓与工具链唯一性
+  - G00-2 文档、指令和子代理发现
+  - G00-3 依赖方向与路径所有权
+  - G00-4 可选来源策略与迁移可追溯
+  - G00-5 零遗留运行依赖
+  acceptance:
+  - 新仓从 clean clone 可 frozen install 并运行 required checks
+  - 根指令和 Luna/Terra/Sol agents 可被 Codex发现
+  - 只有一个 lockfile、一个 Program 和一个允许 no-source 模式的 Legacy Source Manifest
+  - 依赖 DAG/路径所有权/迁移来源负向测试可阻断错误
+  - 仓库不存在旧 Next UI、旧 migration、旧 Phase scripts 和未登记 legacy copy
+  acceptancePolicy:
+    task_routing:
+      low_medium:
+        required_agents:
+        - terra_reviewer
+        required_outcome: APPROVED
+      high:
+        required_agents:
+        - terra_reviewer
+        - sol_acceptance
+        required_sol_outcome: ACCEPT
+      critical:
+        required_agents:
+        - terra_reviewer
+        - terra_security
+        - sol_architecture_security
+        required_sol_outcome: ACCEPT
+        exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+    phase_gate:
+      required_agents:
+      - sol_phase_gate
+      required_sol_phase_outcome: PASS_RECOMMENDED
+      final_decision_owner: parent_codex
+      human_decision_required: false
+    sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.
+  taskCount: 7
+  phaseDocument: docs/program/phases/HW-00-clean-foundation.md
+  taskManifest: docs/program/tasks/HW-00.yaml
+- id: HW-01
+  title: 共享契约内核与干净数据库基线
+  slug: core-kernel-database
+  goal: 建立事件、命令、身份上下文、敏感度、卡片、ID、时间、审计和数据库运行时的纯内核；数据库从空基线重建，不迁移旧数据或旧 migration。
+  dependsOn:
+  - HW-00
+  deliverables:
+  - '`@hospital/contracts-core`、`event-contracts`、`command-contracts`'
+  - '`time-core`、`observability`、`testkit`'
+  - Prisma 7 multi-file/multi-schema 空数据库基线
+  - 数据库运行时与 repository-only 边界
+  - synthetic seed 与 rebuild/rollback 门禁
+  gates:
+  - G01-1 契约纯度与版本化
+  - G01-2 数据库空基线可重建
+  - G01-3 repository-only 数据访问
+  - G01-4 时间、ID、审计与敏感度一致性
+  acceptance:
+  - 核心 contracts 纯净、版本化并有无效 fixtures
+  - 数据库从空库可创建、迁移、seed、重建和恢复
+  - Redis Session 权威未被数据库模型污染
+  - raw Prisma 仅 repository 可用，跨 schema 写入被阻断
+  - 时间、ID、Trace、Audit、Sensitivity 语义统一
+  acceptancePolicy:
+    task_routing:
+      low_medium:
+        required_agents:
+        - terra_reviewer
+        required_outcome: APPROVED
+      high:
+        required_agents:
+        - terra_reviewer
+        - sol_acceptance
+        required_sol_outcome: ACCEPT
+      critical:
+        required_agents:
+        - terra_reviewer
+        - terra_security
+        - sol_architecture_security
+        required_sol_outcome: ACCEPT
+        exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+    phase_gate:
+      required_agents:
+      - sol_architecture_security
+      - sol_phase_gate
+      required_sol_phase_outcome: PASS_RECOMMENDED
+      final_decision_owner: parent_codex
+      human_decision_required: false
+    sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.
+  taskCount: 8
+  phaseDocument: docs/program/phases/HW-01-core-kernel-database.md
+  taskManifest: docs/program/tasks/HW-01.yaml
+- id: HW-02
+  title: 人员、组织、身份、Session 与授权主链
+  slug: identity-person-context
+  goal: 建立以人员为中心的身份上下文：浏览器与桌面共用 Gateway/BFF、Logto 和 Redis Session；医院人员/组织主数据经 Identity Adapter 进入统一 Principal，权限与数据范围始终在服务端裁决。
+  dependsOn:
+  - HW-01
+  deliverables:
+  - '`services/gateway` 与 Identity Adapter'
+  - Logto Traditional Web/BFF 登录和 Redis-only Session
+  - Person/Organization/Role/Scope 模型
+  - '`authz-core` 与服务端权限/范围检查'
+  - Browser/Desktop 共用 Session 主链
+  - 共享终端 logout/switch-person/fail-closed 合同
+  gates:
+  - G02-1 身份映射与人员上下文
+  - G02-2 Redis-only Session
+  - G02-3 默认拒绝授权与 Scope
+  - G02-4 Browser/Desktop 同链路
+  - G02-5 共享终端与故障关闭
+  acceptance:
+  - 外部身份、Person、Organization、Principal 明确分层
+  - Browser/Tauri 共用 BFF 和 Redis Session，客户端不持 Token
+  - 授权默认拒绝且 Scope 失败为 none
+  - logout/switch-person 撤销 family，Redis/BFF 故障 fail-closed
+  - Capability Registry 是能力元数据唯一真相
+  acceptancePolicy:
+    task_routing:
+      low_medium:
+        required_agents:
+        - terra_reviewer
+        required_outcome: APPROVED
+      high:
+        required_agents:
+        - terra_reviewer
+        - sol_acceptance
+        required_sol_outcome: ACCEPT
+      critical:
+        required_agents:
+        - terra_reviewer
+        - terra_security
+        - sol_architecture_security
+        required_sol_outcome: ACCEPT
+        exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+    phase_gate:
+      required_agents:
+      - sol_architecture_security
+      - sol_phase_gate
+      required_sol_phase_outcome: PASS_RECOMMENDED
+      final_decision_owner: parent_codex
+      human_decision_required: false
+    sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.
+  taskCount: 8
+  phaseDocument: docs/program/phases/HW-02-identity-person-context.md
+  taskManifest: docs/program/tasks/HW-02.yaml
+- id: HW-03
+  title: Tauri 可信桌面壳与统一 Workspace Web
+  slug: desktop-web-shell
+  goal: 迁移已经验证的 Tauri/WebView2 安全边界，新建 React/Vite Workspace；桌面与浏览器使用同一不可变远程 SPA 和 BFF，不在 Rust 中托管业务状态或身份 Token。
+  dependsOn:
+  - HW-01
+  - HW-02
+  deliverables:
+  - '`apps/desktop-shell` Tauri 2 Trusted Shell'
+  - '`apps/workspace-web` React/Vite 基础'
+  - 不可变 Workspace release 与 exact origin/path/label binding
+  - 三栏/四区布局、路由、Deep Link 和错误遮罩
+  - Browser/Desktop 同一 UI build
+  - Tauri T25～T27 核心安全测试迁移
+  gates:
+  - G03-1 Tauri 安全实现与测试保真
+  - G03-2 Remote Workspace 零原生权限
+  - G03-3 单一同源不可变 release
+  - G03-4 共享终端 Profile/Resume
+  - G03-5 Browser/Desktop UI 等价
+  acceptance:
+  - Tauri 安全场景不减少；若采用可选旧源则附来源收据，否则以新实现测试证据为准
+  - Remote Workspace capability 默认 none
+  - Browser/Tauri 加载同一 immutable Workspace release
+  - Profile、锁屏恢复、换人和退出无跨用户残留
+  - Deep Link 不能导航任意 URL 或携带敏感正文
+  acceptancePolicy:
+    task_routing:
+      low_medium:
+        required_agents:
+        - terra_reviewer
+        required_outcome: APPROVED
+      high:
+        required_agents:
+        - terra_reviewer
+        - sol_acceptance
+        required_sol_outcome: ACCEPT
+      critical:
+        required_agents:
+        - terra_reviewer
+        - terra_security
+        - sol_architecture_security
+        required_sol_outcome: ACCEPT
+        exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+    phase_gate:
+      required_agents:
+      - sol_architecture_security
+      - sol_phase_gate
+      required_sol_phase_outcome: PASS_RECOMMENDED
+      final_decision_owner: parent_codex
+      human_decision_required: false
+    sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.
+  taskCount: 8
+  phaseDocument: docs/program/phases/HW-03-desktop-web-shell.md
+  taskManifest: docs/program/tasks/HW-03.yaml
+- id: HW-04
+  title: 事件、Inbox、Todo、回放与协同平台
+  slug: event-collaboration-platform
+  goal: 在 `services/collaboration` 按目标契约实现可靠事件存储、Transactional Outbox 接入、用户 Inbox/Todo、SSE 单连接、断线补偿、去重和多表面投影；可选旧源仅用于行为核对。
+  dependsOn:
+  - HW-01
+  - HW-02
+  - HW-03
+  deliverables:
+  - '`services/collaboration` events/inbox/todos/stream 模块'
+  - '`hub-contracts`、`hub-client` 与 Event Catalog'
+  - durable cursor/replay/dedup
+  - 一个 Workspace SSE 连接
+  - Outbox producer/relay SDK
+  - synthetic event-to-inbox-to-UI 闭环
+  gates:
+  - G04-1 Collaboration 事件行为与测试保真
+  - G04-2 Event Catalog 与版本化
+  - G04-3 Outbox/投递/去重
+  - G04-4 SSE 回放与单连接
+  - G04-5 Inbox/Todo/未读一致性
+  acceptance:
+  - 所有事件注册、版本化并有 owner/sensitivity
+  - 领域事务与 Outbox 原子，relay 可恢复且幂等
+  - Event/Inbox/Todo 可从 durable store 确定性重建
+  - Workspace 只有一个 SSE 连接，断线后 gap recovery
+  - 未读、读游标、事件游标语义分离
+  acceptancePolicy:
+    task_routing:
+      low_medium:
+        required_agents:
+        - terra_reviewer
+        required_outcome: APPROVED
+      high:
+        required_agents:
+        - terra_reviewer
+        - sol_acceptance
+        required_sol_outcome: ACCEPT
+      critical:
+        required_agents:
+        - terra_reviewer
+        - terra_security
+        - sol_architecture_security
+        required_sol_outcome: ACCEPT
+        exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+    phase_gate:
+      required_agents:
+      - sol_acceptance
+      - sol_phase_gate
+      required_sol_phase_outcome: PASS_RECOMMENDED
+      final_decision_owner: parent_codex
+      human_decision_required: false
+    sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.
+  taskCount: 8
+  phaseDocument: docs/program/phases/HW-04-event-collaboration-platform.md
+  taskManifest: docs/program/tasks/HW-04.yaml
+- id: HW-05
+  title: 工作项、上下文、卡片协议与 Harness
+  slug: workitem-harness-context
+  goal: 建立以任务和工作项为中心的协作内核：业务线程、活动时间线、结构化卡片、命令回执、Decision/Handoff 和 Harness 完成状态机；领域服务仍是业务真相。
+  dependsOn:
+  - HW-03
+  - HW-04
+  deliverables:
+  - '`services/collaboration` work-items/harness/decisions/handoffs 模块'
+  - WorkItem、Thread、Activity、Context、Card/Action Contracts
+  - Workspace Space/Thread/Timeline/Card/Canvas Runtime
+  - 用户裁决高于模型推断的 Decision 机制
+  - 确定性 Projection 和恢复
+  - synthetic work item 全闭环
+  gates:
+  - G05-1 WorkItem 非业务真相
+  - G05-2 Timeline/Projection 可重建
+  - G05-3 Card Action 幂等与服务端确认
+  - G05-4 Harness/Decision/Handoff 状态机
+  - G05-5 Context 最小化与权限
+  acceptance:
+  - WorkItem 只投影领域实例，不覆盖业务状态
+  - Card Action 具备 command/idempotency/version 且服务端确认完成
+  - Harness/Decision/Handoff 状态机拒绝非法转换
+  - 用户批准/拒绝高于模型建议
+  - Context 按需解析、重新授权且敏感数据不本地持久化
+  acceptancePolicy:
+    task_routing:
+      low_medium:
+        required_agents:
+        - terra_reviewer
+        required_outcome: APPROVED
+      high:
+        required_agents:
+        - terra_reviewer
+        - sol_acceptance
+        required_sol_outcome: ACCEPT
+      critical:
+        required_agents:
+        - terra_reviewer
+        - terra_security
+        - sol_architecture_security
+        required_sol_outcome: ACCEPT
+        exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+    phase_gate:
+      required_agents:
+      - sol_acceptance
+      - sol_phase_gate
+      required_sol_phase_outcome: PASS_RECOMMENDED
+      final_decision_owner: parent_codex
+      human_decision_required: false
+    sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.
+  taskCount: 9
+  phaseDocument: docs/program/phases/HW-05-workitem-harness-context.md
+  taskManifest: docs/program/tasks/HW-05.yaml
+- id: HW-06
+  title: 首个真实垂直切片：信息报修与协作工单
+  slug: tickets-vertical-slice
+  goal: 以报修作为第一个真实领域，验证多人参与、状态机、图片附件、接单/派单/转派、SLA、Incident 合并、Outbox、Work Item、时间线与桌面触达。
+  dependsOn:
+  - HW-05
+  deliverables:
+  - '`services/tickets` 独立领域服务'
+  - '`ticket-contracts` 与状态机'
+  - 受控附件服务与审计
+  - Ticket Outbox/Event/WorkItem mapping
+  - Workspace Tickets Capability
+  - 临床用户与工程师多人 E2E
+  - 内部信息科 MVP Gate
+  gates:
+  - G06-1 Ticket 领域权威与状态机
+  - G06-2 并发/幂等/SLA
+  - G06-3 附件与敏感数据安全
+  - G06-4 WorkItem/Timeline 映射
+  - G06-5 多用户恢复与内部 MVP
+  acceptance:
+  - Ticket 状态机、并发接单、SLA 和 Incident 规则通过
+  - 附件无 IDOR、路径泄漏和 MIME 绕过
+  - Ticket/Outbox/Event/WorkItem/Timeline 可重放一致
+  - 临床用户与工程师在 Workspace 完成闭环
+  - 只批准信息科内部非生产 MVP
+  acceptancePolicy:
+    task_routing:
+      low_medium:
+        required_agents:
+        - terra_reviewer
+        required_outcome: APPROVED
+      high:
+        required_agents:
+        - terra_reviewer
+        - sol_acceptance
+        required_sol_outcome: ACCEPT
+      critical:
+        required_agents:
+        - terra_reviewer
+        - terra_security
+        - sol_architecture_security
+        required_sol_outcome: ACCEPT
+        exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+    phase_gate:
+      required_agents:
+      - sol_acceptance
+      - sol_phase_gate
+      required_sol_phase_outcome: PASS_RECOMMENDED
+      final_decision_owner: parent_codex
+      human_decision_required: false
+    sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.
+  taskCount: 8
+  phaseDocument: docs/program/phases/HW-06-tickets-vertical-slice.md
+  taskManifest: docs/program/tasks/HW-06.yaml
+- id: HW-07
+  title: 第二个垂直切片：确费与强确定性短流程
+  slug: fee-vertical-slice
+  goal: 以确费验证高频、短事务、金额与患者最小信息、严格权限、幂等确认/取消和卡片单击处理，证明聊天界面不会弱化确定性业务控制。
+  dependsOn:
+  - HW-05
+  - HW-06
+  deliverables:
+  - '`services/fee` 独立领域服务'
+  - '`fee-contracts`、金额/时间语义'
+  - HIS/Hosp Access Adapter
+  - Fee Outbox/Event/WorkItem mapping
+  - Workspace Fee Capability
+  - 并发、重复点击、过期、权限和脱敏 E2E
+  gates:
+  - G07-1 Fee 领域与 HIS 边界
+  - G07-2 金额/状态/幂等
+  - G07-3 患者最小化与权限
+  - G07-4 卡片高频体验
+  - G07-5 事务/Outbox/回写恢复
+  acceptance:
+  - Money、HIS authoritative state 和平台回执无歧义
+  - 重复/并发确认或取消不产生重复业务写入
+  - HIS unknown result 被诚实保留并可核对
+  - 患者信息最小化且不进入通知/日志
+  - 卡片高频处理不绕过服务端权限和状态机
+  acceptancePolicy:
+    task_routing:
+      low_medium:
+        required_agents:
+        - terra_reviewer
+        required_outcome: APPROVED
+      high:
+        required_agents:
+        - terra_reviewer
+        - sol_acceptance
+        required_sol_outcome: ACCEPT
+      critical:
+        required_agents:
+        - terra_reviewer
+        - terra_security
+        - sol_architecture_security
+        required_sol_outcome: ACCEPT
+        exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+    phase_gate:
+      required_agents:
+      - sol_acceptance
+      - sol_phase_gate
+      required_sol_phase_outcome: PASS_RECOMMENDED
+      final_decision_owner: parent_codex
+      human_decision_required: false
+    sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.
+  taskCount: 7
+  phaseDocument: docs/program/phases/HW-07-fee-vertical-slice.md
+  taskManifest: docs/program/tasks/HW-07.yaml
+- id: HW-08
+  title: 临床交班与声明式轻应用
+  slug: handover-schema-apps
+  goal: 迁移交班为高敏感、多字段、版本化工作项，并建立不执行远程 JavaScript 的 Schema App DSL，承载通知确认、巡检、值班登记等轻量需求。
+  dependsOn:
+  - HW-05
+  - HW-07
+  deliverables:
+  - '`services/handover` 与 `handover-contracts`'
+  - 交班 Workspace Capability
+  - '`schema-app-contracts` 与白名单 Renderer'
+  - 签名/版本化 Schema App Release
+  - 至少一个 synthetic 轻应用
+  - 临床隐私和并发编辑 Gate
+  gates:
+  - G08-1 交班领域与临床隐私
+  - G08-2 并发编辑/确认/版本
+  - G08-3 Schema DSL 安全
+  - G08-4 签名发布与回滚
+  - G08-5 轻应用不绕过领域服务
+  acceptance:
+  - 交班正文按科室/角色/Scope 保护并有版本历史
+  - 并发修订和确认可审计
+  - Schema DSL 无任意 JS/HTML/URL 执行能力
+  - Schema App release 签名、哈希、版本和回滚通过
+  - 至少一个 synthetic 轻应用完整运行
+  acceptancePolicy:
+    task_routing:
+      low_medium:
+        required_agents:
+        - terra_reviewer
+        required_outcome: APPROVED
+      high:
+        required_agents:
+        - terra_reviewer
+        - sol_acceptance
+        required_sol_outcome: ACCEPT
+      critical:
+        required_agents:
+        - terra_reviewer
+        - terra_security
+        - sol_architecture_security
+        required_sol_outcome: ACCEPT
+        exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+    phase_gate:
+      required_agents:
+      - sol_architecture_security
+      - sol_phase_gate
+      required_sol_phase_outcome: PASS_RECOMMENDED
+      final_decision_owner: parent_codex
+      human_decision_required: false
+    sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.
+  taskCount: 8
+  phaseDocument: docs/program/phases/HW-08-handover-schema-apps.md
+  taskManifest: docs/program/tasks/HW-08.yaml
+- id: HW-09
+  title: Agent Gateway、Coordinator／Worker 与受控协作
+  slug: agent-collaboration
+  goal: 将 Agent 作为服务端受控 Capability 接入工作项和 Harness：Coordinator 负责任务拆解与汇总，Worker 执行专门任务，所有工具、审批、Handoff、产物和完成状态由系统约束。
+  dependsOn:
+  - HW-04
+  - HW-05
+  - HW-06
+  deliverables:
+  - '`services/agent-gateway`'
+  - '`agent-contracts`、Run/Task/Attempt/Tool/Approval 模型'
+  - Coordinator/Worker Runtime
+  - 受控 Tool Registry 与权限风险分级
+  - Harness/Decision/Handoff 集成
+  - Workspace Agent 协作空间
+  - 首个低风险报修分诊或知识整理 Agent
+  gates:
+  - G09-1 Agent Run 与完成状态机
+  - G09-2 Tool Registry 最小权限
+  - G09-3 Coordinator/Worker/Handoff
+  - G09-4 用户审批与取消恢复
+  - G09-5 模型故障、成本与审计
+  acceptance:
+  - Coordinator/Worker 的任务、工具、Handoff 和产物可追溯
+  - Tool Registry 不含 Shell/SQL/任意 HTTP/文件系统
+  - 写工具有服务端权限和用户审批
+  - 取消/重启/晚到/重复审批状态正确
+  - 首个 Agent 保持建议模式，失败不影响确定性业务
+  acceptancePolicy:
+    task_routing:
+      low_medium:
+        required_agents:
+        - terra_reviewer
+        required_outcome: APPROVED
+      high:
+        required_agents:
+        - terra_reviewer
+        - sol_acceptance
+        required_sol_outcome: ACCEPT
+      critical:
+        required_agents:
+        - terra_reviewer
+        - terra_security
+        - sol_architecture_security
+        required_sol_outcome: ACCEPT
+        exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+    phase_gate:
+      required_agents:
+      - sol_acceptance
+      - sol_architecture_security
+      - sol_phase_gate
+      required_sol_phase_outcome: PASS_RECOMMENDED
+      final_decision_owner: parent_codex
+      human_decision_required: false
+    sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.
+  taskCount: 8
+  phaseDocument: docs/program/phases/HW-09-agent-collaboration.md
+  taskManifest: docs/program/tasks/HW-09.yaml
+- id: HW-10
+  title: 知识整理项目、治理生命周期与 Agent 协作
+  slug: knowledge-governance
+  goal: 将知识整理作为一类一等工作项：文档、知识节点、关系、来源、版本、院级/院区/科室/项目范围、active/retired 和专家审校均可追溯；Agent 只能提出建议，专家裁决为权威。
+  dependsOn:
+  - HW-05
+  - HW-09
+  deliverables:
+  - '`services/knowledge` 与 `knowledge-contracts`'
+  - Knowledge Node/Relation/Source/Version/Review 数据模型
+  - active/retired 和 hospital/campus/department/project scope
+  - 知识编译/审校 Harness
+  - Workspace Knowledge Project Capability
+  - Coordinator/Worker 知识整理 Agent
+  - 可选 Hybrid Retrieval 接口与 provenance
+  gates:
+  - G10-1 知识来源/版本/范围
+  - G10-2 用户审校权威
+  - G10-3 active/retired 生命周期
+  - G10-4 Agent 抽取与发布隔离
+  - G10-5 检索 provenance 与权限
+  acceptance:
+  - 知识节点/关系/版本/来源/scope/active-retired 可追溯
+  - 未审校建议不能发布为 active
+  - 专家 Decision 是最终权威
+  - 检索先授权再排序，retired/draft 默认排除
+  - 从 synthetic 文档到发布/退役/检索完成全链
+  acceptancePolicy:
+    task_routing:
+      low_medium:
+        required_agents:
+        - terra_reviewer
+        required_outcome: APPROVED
+      high:
+        required_agents:
+        - terra_reviewer
+        - sol_acceptance
+        required_sol_outcome: ACCEPT
+      critical:
+        required_agents:
+        - terra_reviewer
+        - terra_security
+        - sol_architecture_security
+        required_sol_outcome: ACCEPT
+        exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+    phase_gate:
+      required_agents:
+      - sol_acceptance
+      - sol_phase_gate
+      required_sol_phase_outcome: PASS_RECOMMENDED
+      final_decision_owner: parent_codex
+      human_decision_required: false
+    sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.
+  taskCount: 8
+  phaseDocument: docs/program/phases/HW-10-knowledge-governance.md
+  taskManifest: docs/program/tasks/HW-10.yaml
+- id: HW-11
+  title: 灵动岛、系统通知、发布硬化与受控试点
+  slug: native-surfaces-pilot
+  goal: 在 Workspace 主链稳定后，通过一个最小、单向、强校验的 Tauri Surface Bridge 统一托盘、Windows 通知和灵动岛；完成不可变服务端制品、MSI、浏览器/桌面 E2E、无外网发布和受控试点。
+  dependsOn:
+  - HW-06
+  - HW-07
+  - HW-08
+  - HW-09
+  - HW-10
+  deliverables:
+  - '`surface-contracts` 与最小 Native Bridge ADR'
+  - Tray/Toast/Island 统一投影与 Deep Link
+  - Windows MSI 安装/升级/卸载/回滚
+  - 服务端 immutable release 与 Nginx/systemd
+  - Browser/Desktop/Anolis 真实验收
+  - 监控、备份、故障演练和运行手册
+  - G11-PILOT 决议
+  gates:
+  - G11-1 Native Bridge 最小权限
+  - G11-2 锁屏/共享终端通知隐私
+  - G11-3 MSI 与 WebView2 生命周期
+  - G11-4 Server immutable/no-egress release
+  - G11-5 故障恢复与受控试点
+  acceptance:
+  - Native Bridge 只有一个最小命令且 exact caller/Rust validation
+  - Tray/Toast/Island 不暴露患者和财务敏感正文
+  - MSI、WebView2、不可变服务端制品和回滚有真实证据
+  - Browser/Desktop/Anolis 环境声明真实
+  - 安全、恢复、运维和用户体验满足受控试点
+  acceptancePolicy:
+    task_routing:
+      low_medium:
+        required_agents:
+        - terra_reviewer
+        required_outcome: APPROVED
+      high:
+        required_agents:
+        - terra_reviewer
+        - sol_acceptance
+        required_sol_outcome: ACCEPT
+      critical:
+        required_agents:
+        - terra_reviewer
+        - terra_security
+        - sol_architecture_security
+        required_sol_outcome: ACCEPT
+        exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+    phase_gate:
+      required_agents:
+      - sol_architecture_security
+      - sol_phase_gate
+      required_sol_phase_outcome: PASS_RECOMMENDED
+      final_decision_owner: parent_codex
+      human_decision_required: true
+    sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.
+  taskCount: 8
+  phaseDocument: docs/program/phases/HW-11-native-surfaces-pilot.md
+  taskManifest: docs/program/tasks/HW-11.yaml
+- id: HW-12
+  title: 容量、HA、灰度发布与全院生产
+  slug: scale-ha-production
+  goal: 基于真实试点指标完成 PostgreSQL、Redis Session、Collaboration SSE、Agent Queue、附件和客户端分发的容量与高可用设计，建立分环灰度、回滚和全院运营治理。
+  dependsOn:
+  - HW-11
+  deliverables:
+  - 真实负载与容量模型
+  - PostgreSQL pool/backup/HA
+  - Redis Session HA
+  - Collaboration 多实例与 SSE 恢复
+  - Agent/附件容量和限流
+  - 客户端与 Workspace release 分环灰度
+  - 生产运行责任、SLO 和 G12-PRODUCTION
+  gates:
+  - G12-1 真实容量模型
+  - G12-2 PostgreSQL/Redis HA
+  - G12-3 Collaboration/Agent 横向扩展
+  - G12-4 客户端版本兼容与灰度
+  - G12-5 全院生产人工批准
+  acceptance:
+  - 容量模型来自试点真实指标
+  - PostgreSQL/Redis HA 不改变数据和 Session 权威
+  - Collaboration 多实例故障后可回放恢复
+  - Agent/Knowledge/附件有背压、预算和降级
+  - 分环发布、版本兼容、回滚和生产责任获人工批准
+  acceptancePolicy:
+    task_routing:
+      low_medium:
+        required_agents:
+        - terra_reviewer
+        required_outcome: APPROVED
+      high:
+        required_agents:
+        - terra_reviewer
+        - sol_acceptance
+        required_sol_outcome: ACCEPT
+      critical:
+        required_agents:
+        - terra_reviewer
+        - terra_security
+        - sol_architecture_security
+        required_sol_outcome: ACCEPT
+        exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+    phase_gate:
+      required_agents:
+      - sol_acceptance
+      - sol_architecture_security
+      - sol_phase_gate
+      required_sol_phase_outcome: PASS_RECOMMENDED
+      final_decision_owner: parent_codex
+      human_decision_required: true
+    sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.
+  taskCount: 8
+  phaseDocument: docs/program/phases/HW-12-scale-ha-production.md
+  taskManifest: docs/program/tasks/HW-12.yaml

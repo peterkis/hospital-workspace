@@ -1,0 +1,417 @@
+schemaVersion: hospital-workspace.phase.v1
+program: hospital-workspace
+targetRepository: peterkis/hospital-workspace
+legacySource:
+  mode: optional-local
+  required: false
+  absencePolicy: reimplement-from-target-contracts
+  configPath: config/local/legacy-source.yaml
+referenceSource:
+  repository: HirezmingD/Knowe-agent-groupchat
+  commit: 1e584f84734e9db55515ef4391fcb9e9c40399cd
+id: HW-02
+title: 人员、组织、身份、Session 与授权主链
+goal: 建立以人员为中心的身份上下文：浏览器与桌面共用 Gateway/BFF、Logto 和 Redis Session；医院人员/组织主数据经 Identity Adapter 进入统一 Principal，权限与数据范围始终在服务端裁决。
+dependsOn:
+- HW-01
+deliverables:
+- '`services/gateway` 与 Identity Adapter'
+- Logto Traditional Web/BFF 登录和 Redis-only Session
+- Person/Organization/Role/Scope 模型
+- '`authz-core` 与服务端权限/范围检查'
+- Browser/Desktop 共用 Session 主链
+- 共享终端 logout/switch-person/fail-closed 合同
+outOfScope:
+- 患者主索引
+- 业务权限全量配置 UI
+- 原生客户端 Token/Refresh Token 托管
+- 生产医院认证接口切换
+acceptance:
+- 外部身份、Person、Organization、Principal 明确分层
+- Browser/Tauri 共用 BFF 和 Redis Session，客户端不持 Token
+- 授权默认拒绝且 Scope 失败为 none
+- logout/switch-person 撤销 family，Redis/BFF 故障 fail-closed
+- Capability Registry 是能力元数据唯一真相
+gates:
+- G02-1 身份映射与人员上下文
+- G02-2 Redis-only Session
+- G02-3 默认拒绝授权与 Scope
+- G02-4 Browser/Desktop 同链路
+- G02-5 共享终端与故障关闭
+tasks:
+- id: HW02-01
+  title: 定义 Principal、Person 与 Organization Contracts
+  primary_owner: terra_contracts
+  supporting_agents:
+  - luna_fixtures
+  - terra_reviewer
+  execution_mode: workspace-write
+  parallel_group: A
+  risk: high
+  depends_on: []
+  allowed_paths:
+  - packages/identity-contracts/**
+  - packages/contracts-core/**
+  - database/prisma/models/iam.prisma
+  objective: 区分外部认证身份、医院人员主数据、组织归属、岗位角色和运行时 Principal。
+  steps:
+  - 定义 ExternalIdentity、Person、Employment、DepartmentMembership、CampusMembership。
+  - Principal 只包含授权所需最小字段和版本，不包含密码或上游凭据。
+  - 定义 identityVersion、authzVersion、organizationVersion。
+  - 支持人员停用、离岗、调科和多院区归属。
+  - 提供重复工号、无科室、停用、映射冲突 fixtures。
+  validation:
+  - contract tests
+  - mapping conflict fixtures
+  - schema validation
+  acceptance:
+  - 外部 identity 与 Person 可独立演进
+  - Principal 可在每次请求重建/验证
+  evidence:
+  - identity-contract-report.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW02-02
+  title: 迁移并净化医院 Identity Bridge
+  primary_owner: terra_migrator
+  supporting_agents:
+  - luna_explorer
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: B
+  risk: high
+  depends_on:
+  - HW02-01
+  allowed_paths:
+  - services/gateway/src/identity/**
+  - packages/identity-adapter/**
+  - docs/migration/**
+  objective: 从 legacy 身份桥和 HIS credential authority 中抽取协议、重试、映射和测试，不复制旧 Portal UI 或 Session 表。
+  steps:
+  - 先生成 legacy execution map 和白名单文件清单。
+  - 迁移上游认证/人员查询 adapter 接口与 synthetic fake adapter。
+  - 删除旧 Next request context、页面、JWT/local token 和 PostgreSQL Session 假设。
+  - 上游凭据只在 Gateway/Identity Adapter 内短时使用并脱敏。
+  - 记录 source hash、改造差异和未迁移项。
+  validation:
+  - legacy source verification
+  - adapter contract tests
+  - credential redaction tests
+  acceptance:
+  - 新代码不依赖 `hospital-sso-starter`
+  - 无旧 UI/Session model 进入新仓
+  evidence:
+  - identity-migration-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW02-03
+  title: 实现 Gateway/BFF 与 Logto 回调
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_worker
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: C
+  risk: critical
+  depends_on:
+  - HW02-01
+  - HW02-02
+  allowed_paths:
+  - services/gateway/**
+  - packages/api-client/**
+  - database/prisma/models/iam.prisma
+  - database/prisma/models/config.prisma
+  objective: 建立唯一浏览器/桌面 Web Session 入口，客户端不直接保管 OIDC Token。
+  steps:
+  - 使用 Logto Traditional Web 客户端和 Authorization Code 流程。
+  - OIDC Token 只在服务端交换和验证，浏览器获得 host-only HttpOnly Session Cookie。
+  - Session family、CSRF、rotation、idle/absolute expiry 和 logout 合同明确。
+  - Gateway 暴露 `/auth/session`、login callback、logout、switch-person 受控接口。
+  - 所有 redirect/origin/cookie 属性由环境配置和 exact allowlist 决定。
+  validation:
+  - OIDC callback tests
+  - CSRF
+  - open redirect
+  - cookie attribute
+  - token leakage scan
+  acceptance:
+  - Rust/React 不能读取 OIDC Token
+  - Cookie 不进入 localStorage/URL/log
+  evidence:
+  - gateway-auth-report.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW02-04
+  title: 实现 Redis-only Session Authority
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_worker
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: C
+  risk: critical
+  depends_on:
+  - HW02-03
+  - HW01-03
+  allowed_paths:
+  - services/gateway/src/session/**
+  - packages/redis-core/**
+  - database/prisma/models/iam.prisma
+  objective: Session 创建、查询、撤销、换人和权限版本校验全部以 Redis 为唯一运行时权威。
+  steps:
+  - 定义 opaque session id、family id、principal snapshot version 和 TTL。
+  - 不创建 PostgreSQL Session/RefreshSession 运行表。
+  - Redis 不可用时 fail-closed，不回退内存或 PostgreSQL。
+  - logout/switch-person 撤销 family，防止旧 WebView/标签页复活。
+  - 实现 concurrent rotate/revoke、stale authz version 和 Redis failover fixtures。
+  validation:
+  - session lifecycle
+  - replay/reuse
+  - Redis unavailable
+  - family revocation
+  - concurrency
+  acceptance:
+  - 唯一 Session authority 明确
+  - 任何无法确认的会话均不恢复业务 UI
+  evidence:
+  - session-authority-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW02-05
+  title: 实现 Authz Core 与 Scope Resolver
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_contracts
+  - terra_tester
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: D
+  risk: critical
+  depends_on:
+  - HW02-01
+  - HW02-04
+  allowed_paths:
+  - packages/authz-core/**
+  - services/gateway/src/authz/**
+  - database/prisma/models/config.prisma
+  objective: 以功能权限、数据范围和当前 Principal 版本三层裁决所有请求。
+  steps:
+  - 定义 capability/action/resource policy model，default deny、explicit deny first。
+  - Scope 只允许 none/all/restricted，空和解析失败为 none。
+  - 支持 hospital/campus/department/self/assigned/project 范围。
+  - 策略发布有 immutable policyReleaseId 和 authzVersion。
+  - 提供 owner/reviewer 分离的策略 seed 和 negative fixtures。
+  validation:
+  - permission matrix
+  - empty/invalid scope
+  - stale authz version
+  - deny precedence
+  acceptance:
+  - 客户端隐藏按钮不是权限边界
+  - 服务端每次写命令重新裁决
+  evidence:
+  - authz-scope-matrix.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-architecture-security
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  acceptance_outcome: ACCEPT
+- id: HW02-06
+  title: 建立 Capability Registry 身份入口
+  primary_owner: terra_worker
+  supporting_agents:
+  - terra_contracts
+  - terra_tester
+  execution_mode: workspace-write
+  parallel_group: E
+  risk: medium
+  depends_on:
+  - HW02-05
+  allowed_paths:
+  - packages/capability-contracts/**
+  - services/gateway/src/registry/**
+  - database/prisma/models/config.prisma
+  objective: 建立应用/能力注册表，为后续空间、卡片、事件、深链和权限提供唯一元数据源。
+  steps:
+  - 定义 capability id/version/kind/routes/permissions/events/cards/minRuntime/release。
+  - Registry 只指向 immutable release，不携带可执行远程 JS。
+  - 用户可见能力由 Principal+policy+scope 计算。
+  - Legacy URL 不作为 canonical capability。
+  validation:
+  - registry schema
+  - unknown capability
+  - disabled/version mismatch tests
+  acceptance:
+  - 不存在第二份静态应用清单
+  - 未授权 capability 不进入导航
+  evidence:
+  - capability-registry-snapshot.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: terra
+  acceptance_agents:
+  - terra_reviewer
+  acceptance_outcome: APPROVED
+- id: HW02-07
+  title: Browser/Desktop Session 等价合同
+  primary_owner: terra_tester
+  supporting_agents:
+  - terra_browser
+  - terra_security
+  execution_mode: workspace-write
+  parallel_group: F
+  risk: high
+  depends_on:
+  - HW02-03
+  - HW02-04
+  - HW02-05
+  allowed_paths:
+  - services/gateway/test/**
+  - scripts/acceptance/identity/**
+  - docs/security/**
+  objective: 用 synthetic 身份证明浏览器和 Tauri WebView 获取相同 Principal、policy、scope 和撤销行为。
+  steps:
+  - 先使用普通浏览器和受控 WebView fixture，不要求完成正式桌面 UI。
+  - 覆盖 login/session/unauthorized/logout/switch-person/lock resume。
+  - 对比 principalId、identityVersion、authzVersion、policyReleaseId、scope。
+  - Redis/BFF 暂不可用时保持隐私遮罩/拒绝，不恢复旧用户。
+  validation:
+  - browser acceptance
+  - webview session probe
+  - failure matrix
+  acceptance:
+  - 两类客户端无第二套 token/session
+  - 共享终端不跨用户残留
+  evidence:
+  - identity-primary-chain-receipt.json
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-acceptance
+  acceptance_agents:
+  - terra_reviewer
+  - sol_acceptance
+  acceptance_outcome: ACCEPT
+- id: HW02-08
+  title: Identity & Access Gate
+  primary_owner: parent_codex
+  supporting_agents:
+  - terra_reviewer
+  - terra_security
+  execution_mode: read-only
+  parallel_group: G
+  risk: critical
+  depends_on:
+  - HW02-03
+  - HW02-04
+  - HW02-05
+  - HW02-06
+  - HW02-07
+  allowed_paths:
+  - services/gateway/**
+  - packages/identity-*/**
+  - packages/authz-core/**
+  - database/prisma/models/iam.prisma
+  - database/prisma/models/config.prisma
+  objective: 确认人员中心、Session、权限和 Scope 可以作为所有后续服务的唯一入口。
+  steps:
+  - 复核 token/cookie/CSRF/redirect/session/authz/scope/registry。
+  - 扫描 PostgreSQL Session、localStorage token、客户端 secret 和隐式 allow。
+  - 执行 Redis/Identity upstream failure drills。
+  - 签发 G02。
+  validation:
+  - full identity suite
+  - security scan
+  - failure drills
+  - independent review
+  acceptance:
+  - P0/P1 为零
+  - 允许 Workspace 与平台服务接入真实 Principal
+  evidence:
+  - G02-gate-decision.md
+  stop_if:
+  - 需要修改未在 allowed_paths 中声明的路径
+  - 需要改变已接受 ADR、身份/Session、授权/Scope、TLS、原生权限或数据所有权边界
+  - 需要新增生产依赖、破坏性数据库操作或对外部系统写入，但任务未明确授权
+  - 当前工作树包含无法归属的用户修改；若本任务主动采用可选旧源，则该旧源无法绑定固定 commit
+  acceptance_tier: sol-phase-gate
+  acceptance_agents:
+  - terra_reviewer
+  - terra_security
+  - sol_architecture_security
+  - sol_phase_gate
+  acceptance_outcome: PASS_RECOMMENDED
+acceptance_policy:
+  task_routing:
+    low_medium:
+      required_agents:
+      - terra_reviewer
+      required_outcome: APPROVED
+    high:
+      required_agents:
+      - terra_reviewer
+      - sol_acceptance
+      required_sol_outcome: ACCEPT
+    critical:
+      required_agents:
+      - terra_reviewer
+      - terra_security
+      - sol_architecture_security
+      required_sol_outcome: ACCEPT
+      exception: Critical tasks that are primarily E2E/acceptance evidence route to sol_acceptance instead of sol_architecture_security.
+  phase_gate:
+    required_agents:
+    - sol_architecture_security
+    - sol_phase_gate
+    required_sol_phase_outcome: PASS_RECOMMENDED
+    final_decision_owner: parent_codex
+    human_decision_required: false
+  sol_unavailable: BLOCKED unless the user explicitly approves a model-routing change; no silent substitution.

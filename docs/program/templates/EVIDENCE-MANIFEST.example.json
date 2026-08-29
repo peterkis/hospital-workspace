@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "hospital-workspace.evidence.v1",
+  "program": "hospital-workspace",
+  "phaseId": "HW-00",
+  "gateId": "G00-EXAMPLE",
+  "sourceCommit": "0000000000000000000000000000000000000000",
+  "resultCommit": null,
+  "workingTreeDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "branch": "hw/hw-00/example",
+  "environment": {
+    "os": "example",
+    "runtime": "example",
+    "notes": "Template only"
+  },
+  "commands": [
+    {
+      "command": "example",
+      "result": "NOT_RUN",
+      "exitCode": null,
+      "log": "example.log",
+      "environment": "example"
+    }
+  ],
+  "artifacts": [],
+  "negativeScenarios": [
+    {
+      "name": "example",
+      "result": "NOT_RUN",
+      "evidence": "example"
+    }
+  ],
+  "rollbackVerification": {
+    "result": "NOT_APPLICABLE",
+    "evidence": "template"
+  },
+  "reviewers": [
+    {
+      "name": "example",
+      "role": "reviewer",
+      "outcome": "REJECTED",
+      "report": "template"
+    }
+  ],
+  "knownLimitations": [
+    "Template only. Never register as PASS."
+  ],
+  "decision": "BLOCKED",
+  "decidedAt": "2026-08-24T00:00:00+09:00",
+  "modelReviews": [
+    {
+      "agent": "terra_reviewer",
+      "model": "gpt-5.6-terra",
+      "reviewType": "correctness",
+      "outcome": "REJECTED",
+      "sourceCommit": "0000000000000000000000000000000000000000",
+      "resultCommitOrTree": "0000000000000000000000000000000000000000000000000000000000000000",
+      "report": "template-terra-review.md",
+      "notes": "Template only"
+    },
+    {
+      "agent": "sol_phase_gate",
+      "model": "gpt-5.6-sol",
+      "reviewType": "phase_gate",
+      "outcome": "BLOCKED",
+      "sourceCommit": "0000000000000000000000000000000000000000",
+      "resultCommitOrTree": "0000000000000000000000000000000000000000000000000000000000000000",
+      "report": "template-sol-phase-gate.md",
+      "notes": "Template only"
+    }
+  ]
+}

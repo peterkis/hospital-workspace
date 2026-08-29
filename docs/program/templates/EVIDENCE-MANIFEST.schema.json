@@ -1,0 +1,439 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hospital-workspace.example.internal/schemas/evidence-manifest.v1.json",
+  "title": "Hospital Workspace Evidence Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "program",
+    "phaseId",
+    "gateId",
+    "sourceCommit",
+    "branch",
+    "environment",
+    "commands",
+    "artifacts",
+    "negativeScenarios",
+    "rollbackVerification",
+    "reviewers",
+    "modelReviews",
+    "knownLimitations",
+    "decision",
+    "decidedAt"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "hospital-workspace.evidence.v1"
+    },
+    "program": {
+      "const": "hospital-workspace"
+    },
+    "phaseId": {
+      "pattern": "^HW-[0-9]{2}$"
+    },
+    "gateId": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sourceCommit": {
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "resultCommit": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "workingTreeDigest": {
+      "anyOf": [
+        {
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "branch": {
+      "type": "string",
+      "minLength": 1
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "os",
+        "runtime"
+      ],
+      "properties": {
+        "os": {
+          "type": "string"
+        },
+        "runtime": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "command",
+          "result",
+          "exitCode",
+          "log"
+        ],
+        "properties": {
+          "command": {
+            "type": "string",
+            "minLength": 1
+          },
+          "result": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "NOT_RUN"
+            ]
+          },
+          "exitCode": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "log": {
+            "type": "string",
+            "minLength": 1
+          },
+          "environment": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "kind": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "negativeScenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "result",
+          "evidence"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "result": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "NOT_RUN"
+            ]
+          },
+          "evidence": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "rollbackVerification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result",
+        "evidence"
+      ],
+      "properties": {
+        "result": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "NOT_RUN",
+            "NOT_APPLICABLE"
+          ]
+        },
+        "evidence": {
+          "type": "string"
+        }
+      }
+    },
+    "reviewers": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "role",
+          "outcome"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "outcome": {
+            "enum": [
+              "APPROVED",
+              "REJECTED",
+              "CONDITIONAL"
+            ]
+          },
+          "report": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "knownLimitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "decision": {
+      "enum": [
+        "PASS",
+        "CONDITIONAL",
+        "BLOCKED"
+      ]
+    },
+    "decidedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "modelReviews": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "agent",
+          "model",
+          "reviewType",
+          "outcome",
+          "sourceCommit",
+          "resultCommitOrTree",
+          "report"
+        ],
+        "properties": {
+          "agent": {
+            "enum": [
+              "terra_reviewer",
+              "terra_security",
+              "sol_acceptance",
+              "sol_architecture_security",
+              "sol_phase_gate",
+              "parent_codex",
+              "human_owner"
+            ]
+          },
+          "model": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reviewType": {
+            "enum": [
+              "correctness",
+              "security",
+              "task_acceptance",
+              "architecture_security",
+              "phase_gate",
+              "parent_decision",
+              "human_decision"
+            ]
+          },
+          "outcome": {
+            "enum": [
+              "APPROVED",
+              "REJECTED",
+              "CONDITIONAL",
+              "ACCEPT",
+              "REJECT",
+              "BLOCKED",
+              "PASS_RECOMMENDED",
+              "CONDITIONAL_RECOMMENDED",
+              "PASS",
+              "FAIL",
+              "NOT_REQUIRED"
+            ]
+          },
+          "sourceCommit": {
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "resultCommitOrTree": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9a-f]{40}$"
+              },
+              {
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            ]
+          },
+          "report": {
+            "type": "string",
+            "minLength": 1
+          },
+          "notes": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "decision": {
+            "const": "PASS"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "commands": {
+            "not": {
+              "contains": {
+                "properties": {
+                  "result": {
+                    "enum": [
+                      "FAIL",
+                      "NOT_RUN"
+                    ]
+                  }
+                },
+                "required": [
+                  "result"
+                ]
+              }
+            }
+          },
+          "negativeScenarios": {
+            "not": {
+              "contains": {
+                "properties": {
+                  "result": {
+                    "enum": [
+                      "FAIL",
+                      "NOT_RUN"
+                    ]
+                  }
+                },
+                "required": [
+                  "result"
+                ]
+              }
+            }
+          },
+          "reviewers": {
+            "not": {
+              "contains": {
+                "properties": {
+                  "outcome": {
+                    "enum": [
+                      "REJECTED",
+                      "CONDITIONAL"
+                    ]
+                  }
+                },
+                "required": [
+                  "outcome"
+                ]
+              }
+            }
+          },
+          "modelReviews": {
+            "allOf": [
+              {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "agent": {
+                      "const": "sol_phase_gate"
+                    },
+                    "outcome": {
+                      "const": "PASS_RECOMMENDED"
+                    }
+                  },
+                  "required": [
+                    "agent",
+                    "outcome"
+                  ]
+                },
+                "minContains": 1
+              },
+              {
+                "not": {
+                  "contains": {
+                    "type": "object",
+                    "properties": {
+                      "outcome": {
+                        "enum": [
+                          "REJECTED",
+                          "CONDITIONAL",
+                          "REJECT",
+                          "BLOCKED",
+                          "CONDITIONAL_RECOMMENDED",
+                          "FAIL"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "outcome"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
