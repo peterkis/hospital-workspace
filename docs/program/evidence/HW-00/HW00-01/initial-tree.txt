@@ -1,0 +1,184 @@
+HW00-01 initial public tree evidence
+
+task: HW00-01
+repository: peterkis/hospital-workspace
+visibility: PUBLIC
+captured_at_utc: 2026-08-29T13:58:56Z
+branch: hw/hw-00/hw00-01-foundation-acceptance
+source_commit: f12e3f4240319b912d2438f263d529530be8f599
+source_tree: 22555e69d205065521f872fc9dade094f56bd211
+remote_main_commit: f12e3f4240319b912d2438f263d529530be8f599
+tracked_file_count: 152
+path_list_sha256: 312d04f44ceb3032310ec369fba0bb697a19264bab2975aee39217e0e00bcfe4
+working_tree_content_manifest_sha256: 625e90cf4826f377896d2e8a4a7e8dad0e79e6c3b47e59afa7b5647e546c3f58
+worktree_before_evidence: clean
+history: one root commit
+
+Path-list digest algorithm: tracked paths from `git ls-tree -r --name-only HEAD`,
+joined in emitted order with LF and one final LF, encoded as UTF-8 without BOM,
+then SHA-256 hashed.
+
+Content-manifest digest algorithm: for each `git ls-files` path, SHA-256 hash the
+current working-tree bytes, emit `<lowercase_sha256><two spaces><tracked_path>`,
+sort those lines, join with LF plus one final LF, encode as UTF-8 without BOM,
+then SHA-256 hash the manifest. This digest is checkout-byte-specific; the Git
+tree object above is the canonical repository content identity.
+
+Independent inventory: luna_inventory, read-only. It confirmed the same branch,
+commit, tree, clean state, 152 tracked files, no Git special modes, no runtime
+product roots, and no prohibited-path candidates. This is static tree evidence;
+it is not runtime, phase-Gate, migration, pilot, or production evidence.
+
+Tracked paths:
+.codex/agents/luna_docs.toml
+.codex/agents/luna_explorer.toml
+.codex/agents/luna_fixtures.toml
+.codex/agents/luna_inventory.toml
+.codex/agents/sol_acceptance.toml
+.codex/agents/sol_architecture_security.toml
+.codex/agents/sol_phase_gate.toml
+.codex/agents/terra_browser.toml
+.codex/agents/terra_contracts.toml
+.codex/agents/terra_migrator.toml
+.codex/agents/terra_reviewer.toml
+.codex/agents/terra_security.toml
+.codex/agents/terra_tester.toml
+.codex/agents/terra_worker.toml
+.codex/config.toml
+.editorconfig
+.env.example
+.gitattributes
+.github/CODEOWNERS
+.github/ISSUE_TEMPLATE/bug_report.yml
+.github/ISSUE_TEMPLATE/config.yml
+.github/ISSUE_TEMPLATE/feature_request.yml
+.github/PATH-OWNERSHIP.yaml
+.github/PULL_REQUEST_TEMPLATE.md
+.github/rulesets/main-protection.json
+.github/workflows/README.md
+.github/workflows/checks.yml
+.gitignore
+AGENTS.md
+CONTRIBUTING.md
+COPYRIGHT.md
+PUBLIC-DATA-BOUNDARY.md
+README.md
+SECURITY.md
+config/examples/legacy-source.example.yaml
+config/examples/runtime-config.example.json
+config/schema/runtime-config.schema.json
+docs/adr/0001-greenfield-new-repository.md
+docs/adr/0002-remote-same-origin-workspace.md
+docs/adr/0003-person-event-workitem-model.md
+docs/adr/0004-domain-services-authoritative.md
+docs/adr/0005-agent-harness-user-authority.md
+docs/adr/0006-sse-first-durable-replay.md
+docs/adr/0007-database-schema-ownership.md
+docs/adr/0008-public-single-repository-and-externalized-private-config.md
+docs/architecture/AGENT-COORDINATOR-WORKER.md
+docs/architecture/DEPLOYMENT-TOPOLOGY.md
+docs/architecture/DOMAIN-BOUNDARIES.md
+docs/architecture/EVENT-COMMAND-PROTOCOL.md
+docs/architecture/HARNESS-STATE-MACHINE.md
+docs/architecture/KNOWLEDGE-GOVERNANCE.md
+docs/architecture/PERSON-EVENT-WORKITEM-MODEL.md
+docs/architecture/REPOSITORY-LAYOUT.md
+docs/architecture/SECURITY-BOUNDARIES.md
+docs/architecture/TARGET-ARCHITECTURE.md
+docs/architecture/TECHNOLOGY-STACK.md
+docs/architecture/UX-INTERACTION-MODEL.md
+docs/governance/CODE-REVIEW-RULES.md
+docs/governance/DEPENDENCY-RULES.md
+docs/governance/EVIDENCE-POLICY.md
+docs/governance/MODEL-ROUTING.md
+docs/governance/PATH-OWNERSHIP.yaml
+docs/governance/RISK-REGISTER.md
+docs/governance/SOL-ACCEPTANCE-POLICY.md
+docs/migration/ASSET-ADOPTION-MATRIX.md
+docs/migration/DO-NOT-MIGRATE.md
+docs/migration/KNOWE-ADOPTION-MATRIX.md
+docs/migration/LEGACY-SOURCE-MANIFEST.yaml
+docs/migration/LICENSE-AND-PROVENANCE.md
+docs/migration/MIGRATION-PROTOCOL.md
+docs/program/GATES.md
+docs/program/README.md
+docs/program/ROADMAP.md
+docs/program/STATUS.md
+docs/program/SUBAGENT-ORCHESTRATION.md
+docs/program/WORK-PACKAGE-PROTOCOL.md
+docs/program/machine/all-work-packages.csv
+docs/program/machine/baseline-manifest.json
+docs/program/machine/package-summary.json
+docs/program/machine/roadmap.yaml
+docs/program/machine/target-layout.json
+docs/program/machine/work-package-tracker.csv
+docs/program/nested-agents/apps-desktop-shell/AGENTS.md
+docs/program/nested-agents/apps-workspace-web/AGENTS.md
+docs/program/nested-agents/database/AGENTS.md
+docs/program/nested-agents/packages-contracts/AGENTS.md
+docs/program/nested-agents/services-agent-gateway/AGENTS.md
+docs/program/nested-agents/services-collaboration/AGENTS.md
+docs/program/nested-agents/services-domain/AGENTS.md
+docs/program/nested-agents/services-gateway/AGENTS.md
+docs/program/phases/HW-00-clean-foundation.md
+docs/program/phases/HW-01-core-kernel-database.md
+docs/program/phases/HW-02-identity-person-context.md
+docs/program/phases/HW-03-desktop-web-shell.md
+docs/program/phases/HW-04-event-collaboration-platform.md
+docs/program/phases/HW-05-workitem-harness-context.md
+docs/program/phases/HW-06-tickets-vertical-slice.md
+docs/program/phases/HW-07-fee-vertical-slice.md
+docs/program/phases/HW-08-handover-schema-apps.md
+docs/program/phases/HW-09-agent-collaboration.md
+docs/program/phases/HW-10-knowledge-governance.md
+docs/program/phases/HW-11-native-surfaces-pilot.md
+docs/program/phases/HW-12-scale-ha-production.md
+docs/program/prompts/00-INITIALIZE-NEW-REPO.md
+docs/program/prompts/01-VERIFY-INSTRUCTIONS.md
+docs/program/prompts/DIFF-INTEGRATION-REVIEW.md
+docs/program/prompts/HW-00-START.md
+docs/program/prompts/HW-01-START.md
+docs/program/prompts/HW-02-START.md
+docs/program/prompts/HW-03-START.md
+docs/program/prompts/HW-04-START.md
+docs/program/prompts/HW-05-START.md
+docs/program/prompts/HW-06-START.md
+docs/program/prompts/HW-07-START.md
+docs/program/prompts/HW-08-START.md
+docs/program/prompts/HW-09-START.md
+docs/program/prompts/HW-10-START.md
+docs/program/prompts/HW-11-START.md
+docs/program/prompts/HW-12-START.md
+docs/program/prompts/PHASE-GATE-REVIEW.md
+docs/program/prompts/SECURITY-REVIEW.md
+docs/program/prompts/SOL-ARCHITECTURE-SECURITY.md
+docs/program/prompts/SOL-PHASE-GATE.md
+docs/program/prompts/SOL-TASK-ACCEPTANCE.md
+docs/program/tasks/HW-00.yaml
+docs/program/tasks/HW-01.yaml
+docs/program/tasks/HW-02.yaml
+docs/program/tasks/HW-03.yaml
+docs/program/tasks/HW-04.yaml
+docs/program/tasks/HW-05.yaml
+docs/program/tasks/HW-06.yaml
+docs/program/tasks/HW-07.yaml
+docs/program/tasks/HW-08.yaml
+docs/program/tasks/HW-09.yaml
+docs/program/tasks/HW-10.yaml
+docs/program/tasks/HW-11.yaml
+docs/program/tasks/HW-12.yaml
+docs/program/templates/ADR-TEMPLATE.md
+docs/program/templates/EVIDENCE-MANIFEST.example.json
+docs/program/templates/EVIDENCE-MANIFEST.schema.json
+docs/program/templates/GATE-DECISION.md
+docs/program/templates/MIGRATION-RECEIPT.md
+docs/program/templates/PHASE-GATE-CHECKLIST.md
+docs/program/templates/PR-TEMPLATE.md
+docs/program/templates/SOL-ARCHITECTURE-SECURITY-REPORT.md
+docs/program/templates/SOL-PHASE-GATE-REPORT.md
+docs/program/templates/SOL-TASK-ACCEPTANCE-REPORT.md
+docs/program/templates/SUBAGENT-RETURN.md
+docs/program/templates/SUBAGENT-WORK-PACKAGE.md
+docs/program/templates/TASK-STATUS.md
+tools/requirements-bootstrap.txt
+tools/validate_repository.py
