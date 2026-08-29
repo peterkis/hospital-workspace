@@ -1,0 +1,21 @@
+{
+  "name": "@hospital-workspace/root",
+  "version": "0.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.17.0",
+  "engines": {
+    "node": "24.18.0",
+    "pnpm": "11.17.0"
+  },
+  "scripts": {
+    "build": "node scripts/governance/check-workspace-contract.mjs --validate",
+    "lint": "node scripts/governance/check-workspace-contract.mjs --format-check",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "test": "node --test scripts/governance/check-workspace-contract.test.mjs",
+    "check": "pnpm run build && pnpm run lint && pnpm run typecheck && pnpm run test",
+    "format:check": "node scripts/governance/check-workspace-contract.mjs --format-check"
+  },
+  "devDependencies": {
+    "typescript": "7.0.2"
+  }
+}

@@ -1,0 +1,9 @@
+# SHA-256 of final public HW00-02 evidence artifacts.
+# This manifest is excluded from its own contents.
+1b5540f40763016d67a2716c5e12c51b0496b8c7c5e1ab1851608c0b3208b67d  .gitignore
+60ce47f845be8e1e1604c25c9e7a8905c79b3a4714aaf73cad92c4e9e925e16c  toolchain-report.json
+7e6a9cc6a12276e4e94a37c90e2446be0a649c332229be116193df70d4985229  workspace-inventory.json
+19676cf2aae8a481a91e0895554453482a9eac38e66626b1941b90ede3cef342  negative-tests.log
+6f4cc68bc2462ac2fd4c56ceb9538faaacff0eef7ad96ddf079cf6e757255be1  validation-results.md
+93b366a71ae7828f20dbd1db82bb78d3faa6a59671467b543719b60f589dac98  terra-review.md
+d1a248599b8b5629f8fecd402b099e1d6867ab471c1ece6a1fab9758ade3b9c4  task-status.md

@@ -1,0 +1,32 @@
+HW00-02 public negative-test summary
+Evidence binding:
+  source main commit: 4de240423ac52708c4bf290c9f298b43cf88be02
+  implementation commit: de869fb40c56f14e1b4d96c5e49893eef7a0c11a
+  implementation tree: 68e591bc74b480ee22cd975d0fb540cd09c8f399
+  branch: hw/hw-00/hw00-02-toolchain-contract
+
+Command:
+  node --test scripts/governance/check-workspace-contract.test.mjs
+Exit code: 0
+Result: 8 tests passed; 0 failed; 0 skipped.
+
+Positive coverage:
+  PASS - initial empty workspace is accepted and deterministic reports are emitted.
+  PASS - reports can be written to an external directory.
+  PASS - a non-empty workspace N/A rationale is accepted.
+
+Negative scenarios:
+  PASS - reusing a report directory is rejected with report-output-already-exists and existing output remains unchanged.
+  PASS - a report directory inside the repository is rejected with report-directory-must-be-outside-root.
+  PASS - a report path redirected through a directory reparse point is rejected before any report is written.
+  PASS - pre-existing hard-linked report outputs are rejected; sentinel contents remain unchanged and no companion output is created.
+  PASS - a second JavaScript lockfile (yarn.lock) is rejected with prohibited-lockfile:yarn.lock.
+  PASS - a registered workspace missing lint is rejected with missing-quality-script.
+  PASS - an empty workspace N/A rationale is rejected with invalid-not-applicable-rationale.
+  PASS - an npm fallback is rejected with prohibited-package-manager-fallback.
+  PASS - --if-present is rejected with prohibited-if-present.
+  PASS - an empty test script is rejected with empty-script.
+  PASS - a legacy phase-named script is rejected with prohibited-legacy-phase-script.
+
+This is a public-safe summary, not a verbatim runtime log. Local temporary paths,
+usernames, machine identifiers, and private environment details are omitted.
