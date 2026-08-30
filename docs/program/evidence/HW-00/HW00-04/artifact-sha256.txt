@@ -1,0 +1,11 @@
+# SHA-256 of final public HW00-04 Evidence artifacts.
+# This manifest is excluded from its own contents.
+# Frozen pre-acceptance candidate digest: 79eb87c1846c28a3eb8d56c3a01d055565b76805676354e6ba1927c41c35a121
+1e3dfa9ad3b7e48f2a41ceaaf53e49cef0e7df5543fdb25cd318384748b5b274  .gitignore
+5c5edf705a50d225dedb5ea1ba8da4a4972d4202b44c810e85ec9d1476c938b8  authorization-record.md
+3e98c87e4f47c5ae0e82baf47e44cc4c834e5bc238cf6c0574325d54b6ac459a  source-state.json
+23904b8db5ea8309caed2be178a7a98b848489a5f49598f492046bcd0c7a9192  migration-policy-test.log
+3476b0a573437b04b5ca20a1c6b34f34a0874af26a8fd2afd51266b4e0def53d  validation-results.md
+5dddc914cd87969e5d962ef5d1f53c3757e6dd4274a7fcd6e2ad3db754572eed  terra-review.md
+f4ba10813e9d2b2fa20f9ae53fb8b54abd56b80e0c17ddade6fc7842d495ad75  sol-acceptance.md
+12ed8a544590182d68acf03cf3d798b5cfd3504c8b2f79e669d099b46686d4cb  task-status.md

@@ -1,37 +1,56 @@
-# Optional Legacy Adoption Protocol
+# Legacy Source Migration Protocol
 
-## 0. Source mode
+## Active no-source state
 
-No legacy checkout is required for build, CI or implementation. When `config/local/legacy-source.yaml` is absent, record `sourceMode: none` and implement from the target architecture, contracts, fixtures and acceptance criteria.
+`LEGACY-SOURCE-MANIFEST.yaml` is the authoritative current-state manifest. Its
+only active schema is `hospital-workspace.legacy-source.v2`. The active
+`sourceMode: none` state requires empty `sources` and `adoptions`; no local
+checkout is required for build, CI, tests, runtime, release, rollback, or
+implementation. The required fallback is
+`reimplement-from-target-contracts`.
 
-Use the remaining steps only when the repository owner deliberately enables an ignored, read-only local source.
+Do not search for, restore, clone, or substitute deliberately absent legacy
+sources. A later optional-local source needs a new human decision before any
+adoption can be approved.
 
-## 1. Pin
+## Optional-local prerequisites
 
-Record a public-safe source label, a full local commit SHA, exact source path and license/provenance. The local repository path and environment-sensitive details remain outside Git.
+Optional-local is schema-valid only as an ignored local input and is read-only,
+non-submodule, and independent of build, CI, tests, runtime, release, and
+rollback. It must provide a public-safe source label, a full 40-character Git
+commit, source path and SHA-256 hash, owner, license, provenance, target path,
+and accepted migration receipt. The local checkout location stays only in
+ignored local configuration.
 
-## 2. Explore read-only
+Public-safe metadata scalars (`label`, `owner`, `license`, and `provenance`)
+must be 1–120 ASCII characters, begin alphanumerically, end alphanumerically or
+with `)`, and use only letters, digits, internal spaces, `.`, `_`, `:`, `+`,
+`-`, `(`, or `)`. They must not be paths, URLs or remote schemes, file schemes,
+emails, control text, or whitespace-padded identifiers.
 
-Map source files, public APIs, tests, generated artifacts, dependencies, sensitive data and behavior worth preserving. Exploration must not mutate the source checkout.
+Never copy a repository wholesale, import its Git history, broad-cherry-pick,
+or make it a build, CI, test, runtime, release, or rollback dependency.
 
-## 3. Approve an exact whitelist
+## Canonical migration modes
 
-The parent approves exact files or symbols. Directory-wide wildcards are insufficient for high-risk code.
+The exact, case-sensitive enum is:
 
-## 4. Copy and adapt
+- `COPY_ADAPT`: copy an approved, exact source asset and adapt it to the target
+  architecture.
+- `EXTRACT_ADAPT`: extract an approved bounded behavior or symbol and adapt it.
+- `REFERENCE_ONLY`: retain a non-code reference candidate only; it is not an
+  approved or active migration.
+- `DO_NOT_MIGRATE`: record an explicit exclusion.
 
-Do not broad cherry-pick and do not copy Git history. Adapt package scope, imports, configuration, contracts, service boundary, database ownership and tests.
+Aliases, including `COPY-ADAPT`, `EXTRACT`, `REFERENCE`, and `DO_NOT_COPY`, are
+invalid. High-risk copy or extract adoptions may not use wildcards.
 
-## 5. Clean
+## Receipt and validation
 
-Remove generated outputs, obsolete UI, old migrations, environment assumptions, certificate/private material and comments that claim obsolete guarantees.
-
-## 6. Validate
-
-Run source hash checks, preserved-behavior tests, new boundary tests, security negative tests, generated-file scans, dependency graph checks and the complete task Gate.
-
-## 7. Receipt
-
-Record source label/commit/path/hash, target path/hash, copied/adapted/rejected files, behavior preserved or changed, tests, reviewer and limitations.
-
-If no optional source is used, a short no-source receipt is sufficient. A task must not become BLOCKED merely because no legacy checkout exists.
+Every optional adoption needs a receipt that records copied, changed, rejected,
+and unverified items, source and target hashes, behavior/tests, reviewer result,
+and limitations. The deterministic checker validates declarations, consistency,
+ownership mirror, and deterministic static repository signatures. It does not
+open an optional local source, recompute source or target hashes, compare
+behavior, or prove security-behavior preservation. Those checks require the
+future authorized migration receipt and review.

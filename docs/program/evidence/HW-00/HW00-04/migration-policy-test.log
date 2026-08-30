@@ -1,0 +1,139 @@
+# HW00-04 public migration-policy acceptance transcript
+# Redacted public summary: no raw local paths, identities, machine names, or private runtime data.
+
+COMMAND node --check scripts/migration/check-legacy-source-manifest.mjs
+EXIT 0
+
+COMMAND node --check scripts/migration/check-legacy-source-manifest.test.mjs
+EXIT 0
+
+COMMAND node scripts/migration/check-legacy-source-manifest.mjs
+EXIT 0
+OUTPUT {"findings":[],"manifest":{"schemaVersion":"hospital-workspace.legacy-source.v2","sourceMode":"none"},"status":"PASS"}
+
+COMMAND node scripts/migration/check-legacy-source-manifest.mjs
+EXIT 0
+OUTPUT {"findings":[],"manifest":{"schemaVersion":"hospital-workspace.legacy-source.v2","sourceMode":"none"},"status":"PASS"}
+DETERMINISTIC_OUTPUT byte-identical PASS
+
+COMMAND node --test scripts/migration/check-legacy-source-manifest.test.mjs
+EXIT 0
+
+POSITIVE FIXTURE active repository no-source manifest is deterministic and valid without a checkout PASS
+POSITIVE FIXTURE synthetic sourceMode none PASS
+POSITIVE FIXTURE complete optional-local COPY_ADAPT provenance PASS
+POSITIVE FIXTURE complete optional-local public-safe scalar provenance PASS
+POSITIVE FIXTURE REFERENCE_ONLY adoption PASS
+POSITIVE FIXTURE DO_NOT_MIGRATE record PASS
+NEGATIVE FIXTURE optional-local local input is not ignored PASS
+POSITIVE FIXTURE ignored untracked local optional-source input PASS
+NEGATIVE FIXTURE Git ignore negation re-exposes local source config PASS
+NEGATIVE FIXTURE untracked .gitignore used as ignore authority PASS
+NEGATIVE FIXTURE .git/info/exclude used as ignore authority PASS
+NEGATIVE FIXTURE none-with-source PASS expected=NONE_MODE_HAS_SOURCE_OR_DEPENDENCY
+NEGATIVE FIXTURE none-with-adoption PASS expected=NONE_MODE_HAS_SOURCE_OR_DEPENDENCY
+NEGATIVE FIXTURE none-requires-build PASS expected=MANIFEST_FROZEN_INVARIANT
+NEGATIVE FIXTURE none-requires-runtime PASS expected=MANIFEST_FROZEN_INVARIANT
+NEGATIVE FIXTURE none-policy-not-read-only PASS expected=MANIFEST_FROZEN_INVARIANT
+NEGATIVE FIXTURE none-policy-local-input-not-ignored PASS expected=MANIFEST_FROZEN_INVARIANT
+NEGATIVE FIXTURE none-declares-source-commit PASS expected=MANIFEST_UNKNOWN_OR_MISSING_FIELD
+NEGATIVE FIXTURE none-declares-local-source-path PASS expected=MANIFEST_UNKNOWN_OR_MISSING_FIELD
+NEGATIVE FIXTURE unknown-source-mode PASS expected=MANIFEST_INVALID_HEADER
+NEGATIVE FIXTURE optional-short-commit PASS expected=OPTIONAL_SOURCE_COMMIT
+NEGATIVE FIXTURE optional-no-adoption PASS expected=OPTIONAL_LOCAL_INVARIANT
+NEGATIVE FIXTURE optional-missing-label PASS expected=OPTIONAL_SOURCE_INVALID_FIELDS
+NEGATIVE FIXTURE optional-label-drive-path PASS expected=OPTIONAL_SOURCE_LABEL
+NEGATIVE FIXTURE optional-owner-unc-path PASS expected=OPTIONAL_SOURCE_OWNER
+NEGATIVE FIXTURE optional-provenance-url PASS expected=OPTIONAL_SOURCE_PROVENANCE
+NEGATIVE FIXTURE optional-adoption-owner-email PASS expected=ADOPTION_OWNER
+NEGATIVE FIXTURE optional-missing-source-hash PASS expected=OPTIONAL_SOURCE_INVALID_FIELDS
+NEGATIVE FIXTURE optional-changed-source-hash PASS expected=ADOPTION_SOURCE_HASH
+NEGATIVE FIXTURE optional-missing-owner PASS expected=OPTIONAL_SOURCE_INVALID_FIELDS
+NEGATIVE FIXTURE optional-missing-license PASS expected=ADOPTION_INVALID_FIELDS
+NEGATIVE FIXTURE optional-missing-provenance PASS expected=OPTIONAL_SOURCE_INVALID_FIELDS
+NEGATIVE FIXTURE optional-missing-receipt PASS expected=ADOPTION_INVALID_FIELDS
+NEGATIVE FIXTURE optional-missing-target PASS expected=ADOPTION_INVALID_FIELDS
+NEGATIVE FIXTURE optional-absolute-source-path PASS expected=OPTIONAL_SOURCE_PATH
+NEGATIVE FIXTURE optional-copy-source-root PASS expected=OPTIONAL_SOURCE_PATH
+NEGATIVE FIXTURE optional-copy-target-root PASS expected=ADOPTION_TARGET_PATH
+NEGATIVE FIXTURE optional-copy-target-dot-slash PASS expected=ADOPTION_TARGET_PATH
+NEGATIVE FIXTURE optional-path-traversal PASS expected=ADOPTION_TARGET_PATH
+NEGATIVE FIXTURE optional-copy-glob PASS expected=ADOPTION_GLOB
+NEGATIVE FIXTURE optional-unknown-mode PASS expected=ADOPTION_INVALID_MODE
+NEGATIVE FIXTURE optional-unknown-source PASS expected=ADOPTION_UNKNOWN_SOURCE
+NEGATIVE FIXTURE optional-invalid-risk PASS expected=ADOPTION_RISK
+NEGATIVE FIXTURE optional-duplicate-adoption-id PASS expected=ADOPTION_DUPLICATE_ID
+NEGATIVE FIXTURE optional-not-read-only PASS expected=MANIFEST_FROZEN_INVARIANT
+NEGATIVE FIXTURE optional-submodule PASS expected=MANIFEST_FROZEN_INVARIANT
+NEGATIVE FIXTURE optional-broad-cherry-pick PASS expected=MANIFEST_FROZEN_INVARIANT
+NEGATIVE FIXTURE optional-history-import PASS expected=MANIFEST_FROZEN_INVARIANT
+NEGATIVE FIXTURE duplicate JSON-compatible object key PASS expected=MANIFEST_DUPLICATE_KEY
+NEGATIVE FIXTURE source identifier containing a drive path PASS expected=OPTIONAL_SOURCE_INVALID_ID
+NEGATIVE FIXTURE adoption source identifier containing a drive path PASS expected=ADOPTION_SOURCE_ID
+NEGATIVE FIXTURE adoption target with a colon-bearing segment PASS expected=ADOPTION_TARGET_PATH
+POSITIVE FIXTURE textual migration-policy reference PASS
+POSITIVE FIXTURE textual program-evidence reference PASS
+POSITIVE FIXTURE textual public-evidence reference PASS
+NEGATIVE FIXTURE unregistered legacy copy PASS expected=UNREGISTERED_LEGACY_COPY
+NEGATIVE FIXTURE migration documentation code copy PASS expected=UNREGISTERED_LEGACY_COPY
+NEGATIVE FIXTURE program evidence code copy PASS expected=UNREGISTERED_LEGACY_COPY
+NEGATIVE FIXTURE public evidence code copy PASS expected=UNREGISTERED_LEGACY_COPY
+NEGATIVE FIXTURE oversized legacy copy PASS expected=UNREGISTERED_LEGACY_COPY
+NEGATIVE FIXTURE Rust legacy copy PASS expected=UNREGISTERED_LEGACY_COPY
+NEGATIVE FIXTURE portal alias PASS expected=LEGACY_PORTAL_ALIAS
+NEGATIVE FIXTURE portal alias in standalone declaration PASS expected=LEGACY_PORTAL_ALIAS
+NEGATIVE FIXTURE old Phase 01 script PASS expected=LEGACY_PHASE_01
+NEGATIVE FIXTURE old Phase 02 script PASS expected=LEGACY_PHASE_02
+NEGATIVE FIXTURE old Next runtime PASS expected=LEGACY_NEXT_RUNTIME
+NEGATIVE FIXTURE noncanonical Next Pages route PASS expected=LEGACY_NEXT_RUNTIME
+NEGATIVE FIXTURE nested Next configuration PASS expected=LEGACY_NEXT_RUNTIME
+NEGATIVE FIXTURE Next environment declaration PASS expected=LEGACY_NEXT_RUNTIME
+NEGATIVE FIXTURE Next package dependency PASS expected=LEGACY_NEXT_RUNTIME
+NEGATIVE FIXTURE Next package script PASS expected=LEGACY_NEXT_RUNTIME
+NEGATIVE FIXTURE Next static import PASS expected=LEGACY_NEXT_RUNTIME
+NEGATIVE FIXTURE Next require import PASS expected=LEGACY_NEXT_RUNTIME
+NEGATIVE FIXTURE Next dynamic import PASS expected=LEGACY_NEXT_RUNTIME
+NEGATIVE FIXTURE canonical Next app entry PASS expected=LEGACY_NEXT_RUNTIME
+NEGATIVE FIXTURE nested Next app page PASS expected=LEGACY_NEXT_RUNTIME
+NEGATIVE FIXTURE old root Prisma migration PASS expected=LEGACY_ROOT_PRISMA
+NEGATIVE FIXTURE generated JS beside TS PASS expected=GENERATED_BESIDE_TS
+NEGATIVE FIXTURE tracked local source config PASS expected=TRACKED_LOCAL_SOURCE_CONFIG
+NEGATIVE FIXTURE Git submodule file PASS expected=GIT_SUBMODULE
+NEGATIVE FIXTURE broad cherry-pick marker PASS expected=BROAD_CHERRY_PICK
+NEGATIVE FIXTURE imported Git history marker PASS expected=GIT_HISTORY_IMPORT
+NEGATIVE FIXTURE legacy build dependency PASS expected=LEGACY_BUILD_CI_RUNTIME_DEPENDENCY
+NEGATIVE FIXTURE legacy CI dependency PASS expected=LEGACY_BUILD_CI_RUNTIME_DEPENDENCY
+NEGATIVE FIXTURE Windows package local dependency PASS expected=LEGACY_BUILD_CI_RUNTIME_DEPENDENCY
+NEGATIVE FIXTURE Windows workflow local source reference PASS expected=LEGACY_BUILD_CI_RUNTIME_DEPENDENCY
+NEGATIVE FIXTURE legacy file URI dependency PASS expected=LEGACY_BUILD_CI_RUNTIME_DEPENDENCY
+NEGATIVE FIXTURE network legacy file URI dependency PASS expected=LEGACY_BUILD_CI_RUNTIME_DEPENDENCY
+NEGATIVE FIXTURE Cargo Windows legacy dependency PASS expected=LEGACY_BUILD_CI_RUNTIME_DEPENDENCY
+NEGATIVE FIXTURE Cargo drive legacy dependency PASS expected=LEGACY_BUILD_CI_RUNTIME_DEPENDENCY
+NEGATIVE FIXTURE Cargo root drive legacy dependency PASS expected=LEGACY_BUILD_CI_RUNTIME_DEPENDENCY
+NEGATIVE FIXTURE Cargo UNC legacy dependency PASS expected=LEGACY_BUILD_CI_RUNTIME_DEPENDENCY
+NEGATIVE FIXTURE Cargo POSIX legacy dependency PASS expected=LEGACY_BUILD_CI_RUNTIME_DEPENDENCY
+NEGATIVE FIXTURE Cargo root POSIX legacy dependency PASS expected=LEGACY_BUILD_CI_RUNTIME_DEPENDENCY
+NEGATIVE FIXTURE PowerShell legacy dependency PASS expected=LEGACY_BUILD_CI_RUNTIME_DEPENDENCY
+NEGATIVE FIXTURE migration script legacy copy PASS expected=UNREGISTERED_LEGACY_COPY
+NEGATIVE FIXTURE unrelated governance script legacy copy PASS expected=UNREGISTERED_LEGACY_COPY
+POSITIVE FIXTURE canonical ownership mirror consistency PASS
+NEGATIVE FIXTURE one-sided ownership drift PASS expected=OWNERSHIP_MIRROR_DRIFT
+POSITIVE FIXTURE registered COPY_ADAPT target provenance marker PASS
+NEGATIVE FIXTURE unregistered sibling beside registered target PASS expected=UNREGISTERED_LEGACY_COPY
+NEGATIVE FIXTURE unreadable tracked Git inventory PASS expected=GIT_TRACKED_INVENTORY_UNREADABLE
+NEGATIVE FIXTURE index-only Gitlink PASS expected=GIT_SUBMODULE
+NEGATIVE FIXTURE index-only tracked symlink PASS expected=TRACKED_SYMLINK
+NEGATIVE FIXTURE materialized tracked symlink mode PASS expected=TRACKED_SYMLINK
+NEGATIVE FIXTURE index-only tracked legacy local config PASS expected=TRACKED_LOCAL_SOURCE_CONFIG
+NEGATIVE FIXTURE index-only .gitmodules PASS expected=GIT_SUBMODULE
+NEGATIVE FIXTURE untracked materialized .gitmodules PASS expected=GIT_SUBMODULE
+
+SUMMARY tests=98 suites=0 pass=98 fail=0 cancelled=0 skipped=0 todo=0
+
+COMMAND node scripts/governance/check-dependency-dag.mjs
+EXIT 0
+OUTPUT status=PASS canonicalRules=18 mirrorRules=18 workspaces=0 edges=0 findings=0
+
+COMMAND node --test scripts/governance/check-dependency-dag.test.mjs
+EXIT 0
+SUMMARY tests=86 suites=0 pass=86 fail=0 cancelled=0 skipped=0 todo=0

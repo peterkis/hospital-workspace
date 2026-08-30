@@ -1,185 +1,26 @@
-schemaVersion: hospital-workspace.legacy-source.v1
-sourceMode: optional-local
-sourceConfigPath: config/local/legacy-source.yaml
-sourceRequiredForBuild: false
-absencePolicy: reimplement-from-target-contracts
-policy:
-  runtimeDependency: false
-  gitSubmodule: false
-  broadCherryPick: false
-  sourceHashRequired: true
-  migrationReceiptRequired: true
-assets:
-- id: legacy-desktop-runtime
-  sourcePath: desktop-runtime
-  targetPath: apps/desktop-shell
-  mode: COPY_ADAPT
-  phase: HW-03
-  include:
-  - Rust crates
-  - trust-policy
-  - Tauri/WebView2 lifecycle tests
-  - profile/resume/session termination logic
-  exclude:
-  - target
-  - generated assets
-  - temporary certificates/private keys
-  - historical evidence
-  reason: Validated security boundary with high replacement cost.
-- id: legacy-hub-service
-  sourcePath: hub-service
-  targetPath: services/collaboration
-  mode: COPY_ADAPT
-  phase: HW-04
-  include:
-  - Fastify app/server structure
-  - events/inbox/todos/stream modules
-  - tests
-  exclude:
-  - legacy app codes
-  - legacy Prisma client assumptions
-  - release evidence
-  reason: Relatively clean platform service; adapted into Collaboration runtime.
-- id: legacy-hub-packages
-  sourcePath: packages/{hub-core,hub-catalog,hub-producer,hub-relay}
-  targetPath: packages/{hub-contracts,outbox-sdk,hub-client}
-  mode: EXTRACT_ADAPT
-  phase: HW-04
-  include:
-  - contracts
-  - catalog
-  - producer/relay behavior
-  - tests
-  exclude:
-  - hub-next
-  - generated .js/.d.ts in src
-  - '@portal names'
-  reason: Reuse event reliability ideas without Next adapter and source pollution.
-- id: legacy-hosp-access
-  sourcePath: hosp-access-service,packages/hosp-*
-  targetPath: services/hosp-access,packages/hosp-*
-  mode: COPY_ADAPT
-  phase: HW-02/HW-07
-  include:
-  - service boundary
-  - contracts
-  - SDK/client
-  - fake upstream tests
-  exclude:
-  - old BFF integrations
-  - legacy app-specific assumptions
-  reason: Preserve hospital upstream anti-corruption layer.
-- id: legacy-infrastructure-kernels
-  sourcePath: packages/{postgres-core,redis-core,time-core}
-  targetPath: packages/{postgres-core,redis-core,time-core}
-  mode: COPY_ADAPT
-  phase: HW-01
-  include:
-  - source TypeScript
-  - tests
-  - public APIs after review
-  exclude:
-  - dist
-  - generated .js/.d.ts in src
-  - old package metadata
-  reason: Small, focused, already tested utilities.
-- id: legacy-identity
-  sourcePath: hospital-sso-starter and scripts/phase-01/identity-bridge
-  targetPath: services/gateway/src/identity,packages/identity-adapter
-  mode: EXTRACT_ONLY
-  phase: HW-02
-  include:
-  - identity bridge protocol
-  - upstream credential handling
-  - mapping and failure tests
-  exclude:
-  - Next UI
-  - Portal landing
-  - PostgreSQL session models
-  - client JWT
-  - animations
-  reason: Reuse verified behavior, not old application boundary.
-- id: legacy-permission
-  sourcePath: packages/permission-sdk and Phase-01 authz/scope tests
-  targetPath: packages/authz-core,services/gateway/src/authz
-  mode: EXTRACT_ONLY
-  phase: HW-02
-  include:
-  - default deny
-  - deny first
-  - scope semantics
-  - tests
-  exclude:
-  - Next peer/web-auth adapter
-  - legacy package API
-  reason: Preserve policy semantics while removing Next coupling.
-- id: legacy-tickets-domain
-  sourcePath: tickets-service
-  targetPath: services/tickets,packages/ticket-contracts
-  mode: EXTRACT_ONLY
-  phase: HW-06
-  include:
-  - state machine
-  - repository behavior
-  - Outbox
-  - SLA/Incident rules
-  - tests
-  exclude:
-  - Next UI
-  - layout
-  - session/UI notification code
-  - old migrations
-  reason: First vertical slice; domain behavior is reusable.
-- id: legacy-fee-domain
-  sourcePath: hospital-fee-confirmation-app
-  targetPath: services/fee,packages/fee-contracts
-  mode: EXTRACT_ONLY
-  phase: HW-07
-  include:
-  - business rules
-  - HIS adapter
-  - money/time behavior
-  - tests
-  exclude:
-  - Next UI
-  - Radix/shadcn components
-  - mock product data
-  - old Hub UI
-  - old migrations
-  reason: Reuse domain knowledge while rebuilding deterministic service and cards.
-- id: legacy-smart-service
-  sourcePath: smart-service
-  targetPath: services/agent-gateway
-  mode: REFERENCE_ONLY
-  phase: HW-09
-  include:
-  - risk concepts
-  - audit patterns
-  - selected contract ideas after review
-  exclude:
-  - runtime wholesale
-  - database ownership
-  - generic orchestration assumptions
-  reason: New Agent Gateway has different Harness and tool boundaries.
-- id: legacy-clinical-spark
-  sourcePath: clinical-spark-app
-  targetPath: apps/workspace-web
-  mode: REFERENCE_ONLY
-  phase: HW-03
-  include:
-  - Vite 8/base path/build/test lessons
-  exclude:
-  - product UI
-  - business components
-  - release identity
-  reason: Reference for Vite/static release only.
-- id: legacy-root-database
-  sourcePath: prisma/schema.prisma,prisma/migrations,prisma/seed
-  targetPath: database
-  mode: DO_NOT_COPY
-  phase: HW-01
-  include:
-  - domain requirement reference only
-  exclude:
-  - all schema/migration/seed runtime files
-  reason: New repository starts a clean database and migration lineage.
+{
+  "schemaVersion": "hospital-workspace.legacy-source.v2",
+  "sourceMode": "none",
+  "absencePolicy": "reimplement-from-target-contracts",
+  "sourceRequiredForBuild": false,
+  "sourceRequiredForCI": false,
+  "sourceRequiredForTests": false,
+  "sourceRequiredForRuntime": false,
+  "sourceRequiredForRelease": false,
+  "sourceRequiredForRollback": false,
+  "policy": {
+    "gitSubmodule": false,
+    "gitHistoryImport": false,
+    "broadCherryPick": false,
+    "readOnly": true,
+    "localInputIgnored": true,
+    "runtimeDependency": false,
+    "buildDependency": false,
+    "ciDependency": false,
+    "testDependency": false,
+    "releaseDependency": false,
+    "rollbackDependency": false
+  },
+  "sources": [],
+  "adoptions": []
+}
