@@ -40,6 +40,7 @@ rules:
   ownerRole: identity-access-owner
   reviewRoles:
   - security-reviewer
+  - architecture-reviewer
   risk: critical
 - paths:
   - services/collaboration/**
@@ -49,6 +50,7 @@ rules:
   ownerRole: collaboration-owner
   reviewRoles:
   - event-consistency-reviewer
+  - security-reviewer
   risk: critical
 - paths:
   - services/agent-gateway/**
@@ -57,6 +59,7 @@ rules:
   ownerRole: agent-platform-owner
   reviewRoles:
   - agent-security-reviewer
+  - security-reviewer
   risk: critical
 - paths:
   - services/knowledge/**
@@ -79,6 +82,7 @@ rules:
   ownerRole: fee-domain-owner
   reviewRoles:
   - financial-safety-reviewer
+  - security-reviewer
   risk: critical
 - paths:
   - services/handover/**
@@ -86,6 +90,7 @@ rules:
   ownerRole: handover-domain-owner
   reviewRoles:
   - clinical-privacy-reviewer
+  - security-reviewer
   risk: critical
 - paths:
   - services/hosp-access/**
@@ -105,7 +110,10 @@ rules:
   - security-reviewer
   risk: critical
 - paths:
-  - packages/*-contracts/**
+  - packages/event-contracts/**
+  - packages/command-contracts/**
+  - packages/capability-contracts/**
+  - packages/workspace-contracts/**
   - packages/contracts-core/**
   - packages/card-protocol/**
   ownerRole: contract-owner
@@ -122,6 +130,13 @@ rules:
   - security-reviewer
   risk: critical
 - paths:
+  - scripts/governance/**
+  ownerRole: toolchain-owner
+  reviewRoles:
+  - architecture-reviewer
+  - supply-chain-reviewer
+  risk: high
+- paths:
   - .github/workflows/**
   - package.json
   - pnpm-workspace.yaml
@@ -129,6 +144,7 @@ rules:
   ownerRole: toolchain-owner
   reviewRoles:
   - supply-chain-reviewer
+  - security-reviewer
   risk: critical
 constraints:
   ownerAndReviewerMustDiffer: true
