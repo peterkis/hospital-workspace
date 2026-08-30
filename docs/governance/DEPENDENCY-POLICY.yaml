@@ -1,0 +1,222 @@
+{
+  "schemaVersion": "hospital-workspace.dependency-policy.v1",
+  "format": "JSON-compatible YAML; parsed as strict JSON to avoid a runtime YAML parser dependency.",
+  "firstPartyScope": "@hospital/",
+  "allowedExternalDependenciesByLayer": {
+    "contract": ["zod"],
+    "database-runtime": [],
+    "desktop-shell": [],
+    "domain-service": ["fastify"],
+    "frontend": ["react"],
+    "infrastructure-kernel": [],
+    "platform-service": ["fastify"],
+    "pure-utility": ["zod"],
+    "repository": [],
+    "sdk-client": [],
+    "test-support": [],
+    "ui": []
+  },
+  "externalAllowlistEnforcedLayers": [
+    "contract",
+    "domain-service",
+    "frontend",
+    "platform-service",
+    "pure-utility"
+  ],
+  "forbiddenExternalDependenciesByLayer": {
+    "contract": ["@prisma/client", "@tauri-apps/api", "fastify", "ioredis", "pg", "prisma", "react", "redis"],
+    "database-runtime": [],
+    "desktop-shell": [],
+    "domain-service": ["@prisma/client", "ioredis", "pg", "prisma", "redis"],
+    "frontend": ["@prisma/client", "@tauri-apps/api", "fastify", "ioredis", "pg", "prisma", "redis"],
+    "infrastructure-kernel": [],
+    "platform-service": ["@prisma/client", "ioredis", "pg", "prisma", "redis"],
+    "pure-utility": ["@prisma/client", "@tauri-apps/api", "fastify", "ioredis", "pg", "prisma", "react", "redis"],
+    "repository": [],
+    "sdk-client": ["@prisma/client", "@tauri-apps/api", "fastify", "ioredis", "pg", "prisma", "redis"],
+    "test-support": [],
+    "ui": ["@prisma/client", "@tauri-apps/api", "fastify", "ioredis", "pg", "prisma", "redis"]
+  },
+  "forbiddenSourcePrefixesByLayer": {
+    "contract": ["node:"],
+    "database-runtime": [],
+    "desktop-shell": [],
+    "domain-service": [],
+    "frontend": ["node:"],
+    "infrastructure-kernel": [],
+    "platform-service": [],
+    "pure-utility": ["node:"],
+    "repository": [],
+    "sdk-client": ["node:"],
+    "test-support": [],
+    "ui": ["node:"]
+  },
+  "allowedTauriPlugins": [],
+  "layers": [
+    {
+      "id": "frontend",
+      "paths": [
+        "apps/workspace-web"
+      ]
+    },
+    {
+      "id": "desktop-shell",
+      "paths": [
+        "apps/desktop-shell"
+      ]
+    },
+    {
+      "id": "platform-service",
+      "paths": [
+        "services/gateway",
+        "services/collaboration",
+        "services/hosp-access",
+        "services/agent-gateway"
+      ]
+    },
+    {
+      "id": "domain-service",
+      "paths": [
+        "services/tickets",
+        "services/fee",
+        "services/handover",
+        "services/knowledge"
+      ]
+    },
+    {
+      "id": "contract",
+      "paths": [
+        "packages/contracts-core",
+        "packages/*-contracts",
+        "packages/card-protocol"
+      ]
+    },
+    {
+      "id": "sdk-client",
+      "paths": [
+        "packages/api-client",
+        "packages/capability-sdk",
+        "packages/hub-client"
+      ]
+    },
+    {
+      "id": "repository",
+      "paths": [
+        "packages/*-repository"
+      ]
+    },
+    {
+      "id": "infrastructure-kernel",
+      "paths": [
+        "packages/postgres-core",
+        "packages/redis-core",
+        "packages/observability"
+      ]
+    },
+    {
+      "id": "database-runtime",
+      "paths": [
+        "packages/database-runtime"
+      ]
+    },
+    {
+      "id": "pure-utility",
+      "paths": [
+        "packages/authz-core",
+        "packages/time-core"
+      ]
+    },
+    {
+      "id": "ui",
+      "paths": [
+        "packages/ui"
+      ]
+    },
+    {
+      "id": "test-support",
+      "paths": [
+        "packages/testkit"
+      ]
+    }
+  ],
+  "allowedInternalDependencies": {
+    "frontend": [
+      "contract",
+      "pure-utility",
+      "sdk-client",
+      "ui"
+    ],
+    "desktop-shell": [
+      "contract",
+      "pure-utility",
+      "sdk-client"
+    ],
+    "platform-service": [
+      "contract",
+      "infrastructure-kernel",
+      "pure-utility",
+      "repository"
+    ],
+    "domain-service": [
+      "contract",
+      "infrastructure-kernel",
+      "pure-utility",
+      "repository"
+    ],
+    "repository": [
+      "contract",
+      "database-runtime",
+      "infrastructure-kernel",
+      "pure-utility"
+    ],
+    "database-runtime": [
+      "contract",
+      "infrastructure-kernel",
+      "pure-utility"
+    ],
+    "contract": [
+      "contract",
+      "pure-utility"
+    ],
+    "sdk-client": [
+      "contract",
+      "pure-utility"
+    ],
+    "infrastructure-kernel": [
+      "contract",
+      "pure-utility"
+    ],
+    "pure-utility": [
+      "pure-utility"
+    ],
+    "ui": [
+      "contract",
+      "pure-utility"
+    ],
+    "test-support": [
+      "contract",
+      "pure-utility"
+    ]
+  },
+  "repositoryOwnership": {
+    "agent": "agent-gateway",
+    "collaboration": "collaboration",
+    "fee": "fee",
+    "gateway": "gateway",
+    "handover": "handover",
+    "hosp-access": "hosp-access",
+    "identity": "gateway",
+    "knowledge": "knowledge",
+    "ticket": "tickets"
+  },
+  "domainRepositoryOwners": [
+    "fee",
+    "handover",
+    "knowledge",
+    "tickets"
+  ],
+  "limitations": [
+    "Until database and Prisma workspaces exist, Prisma and database-model prohibitions are policy-and-fixture enforcement only; this checker does not claim production database implementation coverage.",
+    "The checker reads workspace manifests and statically detectable module specifiers. Dynamic runtime loading remains prohibited by package boundaries and requires future service-specific enforcement."
+  ]
+}

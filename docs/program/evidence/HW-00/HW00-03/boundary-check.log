@@ -1,0 +1,146 @@
+HW00-03 public dependency-boundary summary
+
+Evidence binding:
+  source main commit: 495cc9de5d7efbf47a42d351916d2aba035cfdb4
+  implementation commit: af9ac63d20e59ddc120fd79d93bb71a995195bf4
+  implementation tree: 1a56d921ac9556020f602bf4401105efa4a3d830
+  tree-listing SHA-256: d0ae497bb3a517b4453b22c4718f4a8349e00364f139c2e8e68a97809196a874
+  branch: hw/hw-00/hw00-03-dependency-dag
+
+Binding and scope checks:
+  PASS - HEAD tree exactly equals the Terra-approved implementation tree.
+  PASS - canonical tree listing contains 180 entries and matches the supplied SHA-256.
+  PASS - source main, origin/main, implementation parent, and merge base are the expected source commit.
+  PASS - the implementation diff contains exactly nine authorized files.
+  PASS - no unstaged, staged, or untracked implementation drift existed before Evidence work.
+  PASS - the Evidence overlay changes only docs/program/evidence/HW-00/HW00-03/**.
+  PASS - forbidden-path scan found no Program status, task manifest, tracker, root manifest, workspace, lockfile, workflow, Ruleset, product, runtime, database, or Prisma change.
+
+Repository dependency checker:
+  command: node scripts/governance/check-dependency-dag.mjs
+  exit code: 0
+  result: PASS
+  actual child workspaces: 0
+  actual dependency nodes: 0
+  actual dependency edges: 0
+  canonical ownership rules: 17
+  mirror ownership rules: 17
+  ownership conflicts: 0
+  findings: 0
+
+Complete dependency-DAG suite:
+  command: node --test scripts/governance/check-dependency-dag.test.mjs
+  exit code: 0
+  result: PASS; 86/86 tests passed; 0 failed; 0 skipped.
+  synthetic fixture graphs: 64 total; 10 positive; 54 negative.
+
+Targeted suites:
+  PASS - ownership suite: 18/18 selected tests.
+  PASS - workspace protocol: 1/1 selected test.
+  PASS - private deep import and public exports: 3/3 selected tests.
+  PASS - graph cycle detection: 1/1 selected test.
+
+Required positive fixture graphs:
+  PASS - positive-frontend-sdk-contracts
+  PASS - positive-service-repository-contracts
+  PASS - positive-repository-database-runtime
+  PASS - positive-contract-pure-utility
+
+Additional positive fixture graphs:
+  PASS - positive-contract-zod-subpath
+  PASS - positive-frontend-react
+  PASS - positive-platform-fastify-node-runtime
+  PASS - positive-platform-owned-repository
+  PASS - positive-pure-utility-zod-subpath
+  PASS - positive-ui-react
+
+Negative dependency fixture graphs and intended findings:
+  PASS - negative-agent-gateway-domain-repository -> PLATFORM_DOMAIN_REPOSITORY
+  PASS - negative-collaboration-domain-repository -> PLATFORM_DOMAIN_REPOSITORY
+  PASS - negative-contract-fastify -> CONTRACT_FORBIDDEN_RUNTIME
+  PASS - negative-contract-node-runtime-import -> CONTRACT_FORBIDDEN_RUNTIME
+  PASS - negative-contract-pg -> CONTRACT_FORBIDDEN_RUNTIME
+  PASS - negative-contract-prisma -> CONTRACT_FORBIDDEN_RUNTIME
+  PASS - negative-contract-prisma-subpath -> CONTRACT_FORBIDDEN_RUNTIME
+  PASS - negative-contract-react -> CONTRACT_FORBIDDEN_RUNTIME
+  PASS - negative-contract-react-subpath -> CONTRACT_FORBIDDEN_RUNTIME
+  PASS - negative-contract-redis -> CONTRACT_FORBIDDEN_RUNTIME
+  PASS - negative-contract-tauri -> CONTRACT_FORBIDDEN_RUNTIME
+  PASS - negative-cross-domain-database-model -> CROSS_DOMAIN_DATABASE_MODEL
+  PASS - negative-cross-domain-repository -> CROSS_DOMAIN_REPOSITORY
+  PASS - negative-cycle -> CIRCULAR_DEPENDENCY
+  PASS - negative-domain-service-react -> SERVICE_EXTERNAL_DEPENDENCY_NOT_ALLOWED
+  PASS - negative-domain-service-ui -> SERVICE_UI_DEPENDENCY
+  PASS - negative-frontend-database-runtime -> FRONTEND_FORBIDDEN_RUNTIME
+  PASS - negative-frontend-express -> FRONTEND_EXTERNAL_DEPENDENCY_NOT_ALLOWED
+  PASS - negative-frontend-fastify -> FRONTEND_FORBIDDEN_RUNTIME
+  PASS - negative-frontend-node-runtime-import -> FRONTEND_FORBIDDEN_RUNTIME
+  PASS - negative-frontend-pg -> FRONTEND_FORBIDDEN_RUNTIME
+  PASS - negative-frontend-prisma -> FRONTEND_FORBIDDEN_RUNTIME
+  PASS - negative-frontend-redis -> FRONTEND_FORBIDDEN_RUNTIME
+  PASS - negative-frontend-service-implementation -> FRONTEND_FORBIDDEN_RUNTIME
+  PASS - negative-gateway-non-owner-repository -> NON_OWNER_REPOSITORY_DEPENDENCY
+  PASS - negative-generated-source -> COMMITTED_GENERATED_SOURCE
+  PASS - negative-import-only-internal-workspace-not-found -> INTERNAL_WORKSPACE_NOT_FOUND
+  PASS - negative-import-only-legacy-portal-alias -> LEGACY_PORTAL_ALIAS
+  PASS - negative-import-only-nextjs -> UNAPPROVED_NEXTJS
+  PASS - negative-import-only-nextjs-subpath -> UNAPPROVED_NEXTJS
+  PASS - negative-import-only-tauri-plugin -> UNAPPROVED_TAURI_PLUGIN
+  PASS - negative-internal-workspace-not-found -> INTERNAL_WORKSPACE_NOT_FOUND
+  PASS - negative-internal-workspace-protocol -> INTERNAL_WORKSPACE_PROTOCOL
+  PASS - negative-legacy-portal-alias -> LEGACY_PORTAL_ALIAS
+  PASS - negative-nextjs -> UNAPPROVED_NEXTJS
+  PASS - negative-platform-service-react -> SERVICE_EXTERNAL_DEPENDENCY_NOT_ALLOWED
+  PASS - negative-private-deep-import -> PRIVATE_DEEP_IMPORT
+  PASS - negative-public-entrypoint -> PUBLIC_ENTRYPOINT_VIOLATION
+  PASS - negative-pure-utility-node-runtime -> PURE_UTILITY_FORBIDDEN_RUNTIME
+  PASS - negative-pure-utility-runtime -> PURE_UTILITY_FORBIDDEN_RUNTIME
+  PASS - negative-relative-cross-workspace -> RELATIVE_CROSS_WORKSPACE_IMPORT
+  PASS - negative-relative-directory-cross-workspace -> RELATIVE_CROSS_WORKSPACE_IMPORT
+  PASS - negative-root-artifact -> COMMITTED_GENERATED_SOURCE
+  PASS - negative-root-export-not-declared -> PUBLIC_ENTRYPOINT_VIOLATION
+  PASS - negative-sdk-server-runtime -> BROWSER_REACHABLE_FORBIDDEN_RUNTIME
+  PASS - negative-service-raw-database -> SERVICE_RAW_DATABASE_DEPENDENCY
+  PASS - negative-service-sdk-client -> FORBIDDEN_LAYER_DEPENDENCY
+  PASS - negative-tauri-plugin -> UNAPPROVED_TAURI_PLUGIN
+  PASS - negative-ui-server-runtime -> BROWSER_REACHABLE_FORBIDDEN_RUNTIME
+  PASS - negative-unclassified-workspace -> UNCLASSIFIED_WORKSPACE
+  PASS - negative-undeclared-workspace-import -> UNDECLARED_WORKSPACE_IMPORT
+  PASS - negative-unowned-repository -> UNOWNED_REPOSITORY
+  PASS - negative-unregistered-workspace-manifest -> UNREGISTERED_WORKSPACE_MANIFEST
+  PASS - negative-workspace-pattern-without-manifest -> WORKSPACE_PATTERN_WITHOUT_MANIFEST
+
+Ownership policy scenarios:
+  PASS - canonical .github authority is required.
+  PASS - scripts/governance/** has an owner and valid distinct reviewers.
+  PASS - every critical rule has at least two unique reviewers.
+  PASS - duplicate reviewers and owner/reviewer collisions fail.
+  PASS - zero- and one-reviewer critical rules fail.
+  PASS - invalid high-risk reviewer cardinality fails.
+  PASS - canonical/mirror reviewer or path-set drift fails.
+  PASS - semantically equivalent YAML ordering and formatting passes.
+  PASS - Windows and POSIX path separators normalize equivalently.
+  PASS - duplicate and conflicting overlapping rules fail.
+  PASS - wildcard intersections are detected symmetrically with deterministic witnesses.
+  PASS - disjoint wildcard rules do not produce false conflicts.
+  PASS - six approved cross-domain contract paths resolve only to contract-owner.
+  PASS - nine specialized contract paths resolve only to their domain/platform owner.
+  PASS - reintroducing packages/*-contracts/** fails.
+  PASS - an unknown unowned contract workspace fails closed.
+  PASS - current canonical ownership has zero conflicting intersections.
+
+Toolchain and repository checks:
+  PASS - pnpm install --frozen-lockfile; exit 0.
+  PASS - pnpm run build; exit 0.
+  PASS - pnpm run lint; exit 0.
+  PASS - pnpm run typecheck; exit 0.
+  PASS - pnpm run test; exit 0; 8/8 workspace-contract tests passed.
+  PASS - pnpm run check; exit 0.
+  PASS - pnpm run format:check; exit 0.
+  PASS - python tools/validate_repository.py; exit 0.
+  PASS - python tools/validate_repository.py --git-index; exit 0.
+  PASS - git diff --check; exit 0.
+
+This is a deterministic public-safe summary, not a verbatim runtime log. Local
+temporary paths, absolute checkout paths, usernames, machine identifiers, and
+private environment details are omitted.

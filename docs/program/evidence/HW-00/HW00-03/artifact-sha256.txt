@@ -1,0 +1,9 @@
+# SHA-256 of the final public HW00-03 Evidence artifacts.
+# This manifest is excluded from its own contents.
+e2c77f91eb9951c53a75cd7bd9a8bdbd3e6f41c625cd192ac9ce1b9376b5c4ee  .gitignore
+4fa1dd129aeb6112c6220678cc3a5eafb41b8dc8031eb85ac7ef426a2bf84db9  authorization-record.md
+4ced60f98409339a072c00ff126e47258c487947a12ab7c6443fa424edc0ce42  boundary-check.log
+62027687db24765116d1c8bc13eccf704b73c72cc1240882b3479a8637cbc32f  dependency-graph.json
+9bd97bcedde4bf7fb5c92a3444866b91df3b83675e5584ce18683528475d0ba0  task-status.md
+da36e0818f419c9ea634a6fee4d1f3dd80c096953ad061eaec6a7e4a581a6913  terra-review.md
+c6a4eff53bed70cf4dd1ebcfe48199df56e9834920ce2736de597cc33bcbb2a9  validation-results.md
