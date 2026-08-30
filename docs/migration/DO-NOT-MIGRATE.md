@@ -23,4 +23,8 @@ The following must not enter the new repository except as a textual reference in
 - dynamic remote JavaScript plugin mechanisms;
 - compatibility aliases for old app codes or URLs unless a new ADR approves them.
 
+These exclusions apply even if a future owner authorizes an optional-local
+source. The active no-source state has no source checkout, code adoption, or
+history import.
+
 If a later task needs one of these items, stop and require a new migration decision.

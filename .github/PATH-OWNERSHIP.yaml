@@ -137,6 +137,14 @@ rules:
   - supply-chain-reviewer
   risk: high
 - paths:
+  - docs/migration/**
+  - scripts/migration/**
+  ownerRole: program-owner
+  reviewRoles:
+  - architecture-reviewer
+  - security-reviewer
+  risk: high
+- paths:
   - .github/workflows/**
   - package.json
   - pnpm-workspace.yaml

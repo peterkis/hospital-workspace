@@ -6,7 +6,15 @@ The repository is public, but no general software license has yet been granted. 
 
 ## Optional owner-controlled legacy source
 
-A local legacy checkout may be used only when configured in ignored `config/local/legacy-source.yaml`. Every adopted asset requires a Migration Receipt recording a public-safe source label, local source commit/digest, source path, target path, ownership, adaptation, tests and reviewer conclusion.
+A local legacy checkout is currently intentionally absent. The active manifest
+uses `sourceMode: none`; no source is required for build, CI, tests, runtime,
+release, or rollback. The public no-source receipt records that decision.
+
+Only after a new human decision may an optional local checkout be configured in
+ignored `config/local/legacy-source.yaml`. Every adopted asset then requires a
+Migration Receipt recording a public-safe source label, full source
+commit/digest, source path/hash, target path, ownership, license/provenance,
+adaptation, tests, reviewer conclusion, and limitations.
 
 The legacy source is never a runtime dependency, Git submodule, CI input or broad cherry-pick source.
 
