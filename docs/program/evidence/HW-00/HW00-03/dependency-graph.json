@@ -1,0 +1,95 @@
+{
+  "schemaVersion": "hospital-workspace.hw00-03.dependency-graph-evidence.v1",
+  "task": "HW00-03",
+  "binding": {
+    "branch": "hw/hw-00/hw00-03-dependency-dag",
+    "implementationCommit": "af9ac63d20e59ddc120fd79d93bb71a995195bf4",
+    "implementationTree": "1a56d921ac9556020f602bf4401105efa4a3d830",
+    "sourceMainCommit": "495cc9de5d7efbf47a42d351916d2aba035cfdb4",
+    "treeListingSha256": "d0ae497bb3a517b4453b22c4718f4a8349e00364f139c2e8e68a97809196a874"
+  },
+  "actualRepositoryGraph": {
+    "checkerSchemaVersion": "hospital-workspace.dependency-dag-report.v1",
+    "edges": [],
+    "findings": [],
+    "nodes": [],
+    "ownership": {
+      "canonicalRuleCount": 17,
+      "conflictingIntersectionCount": 0,
+      "mirrorRuleCount": 17
+    },
+    "status": "PASS",
+    "workspaceCount": 0,
+    "workspacePatterns": []
+  },
+  "targetPolicyGraph": {
+    "concreteWorkspaceCyclesAllowed": false,
+    "layers": [
+      "contract",
+      "database-runtime",
+      "desktop-shell",
+      "domain-service",
+      "frontend",
+      "infrastructure-kernel",
+      "platform-service",
+      "pure-utility",
+      "repository",
+      "sdk-client",
+      "test-support",
+      "ui"
+    ],
+    "allowedLayerEdges": [
+      { "from": "contract", "to": "contract" },
+      { "from": "contract", "to": "pure-utility" },
+      { "from": "database-runtime", "to": "contract" },
+      { "from": "database-runtime", "to": "infrastructure-kernel" },
+      { "from": "database-runtime", "to": "pure-utility" },
+      { "from": "desktop-shell", "to": "contract" },
+      { "from": "desktop-shell", "to": "pure-utility" },
+      { "from": "desktop-shell", "to": "sdk-client" },
+      { "from": "domain-service", "to": "contract" },
+      { "from": "domain-service", "to": "infrastructure-kernel" },
+      { "from": "domain-service", "to": "pure-utility" },
+      { "from": "domain-service", "to": "repository" },
+      { "from": "frontend", "to": "contract" },
+      { "from": "frontend", "to": "pure-utility" },
+      { "from": "frontend", "to": "sdk-client" },
+      { "from": "frontend", "to": "ui" },
+      { "from": "infrastructure-kernel", "to": "contract" },
+      { "from": "infrastructure-kernel", "to": "pure-utility" },
+      { "from": "platform-service", "to": "contract" },
+      { "from": "platform-service", "to": "infrastructure-kernel" },
+      { "from": "platform-service", "to": "pure-utility" },
+      { "from": "platform-service", "to": "repository" },
+      { "from": "pure-utility", "to": "pure-utility" },
+      { "from": "repository", "to": "contract" },
+      { "from": "repository", "to": "database-runtime" },
+      { "from": "repository", "to": "infrastructure-kernel" },
+      { "from": "repository", "to": "pure-utility" },
+      { "from": "sdk-client", "to": "contract" },
+      { "from": "sdk-client", "to": "pure-utility" },
+      { "from": "test-support", "to": "contract" },
+      { "from": "test-support", "to": "pure-utility" },
+      { "from": "ui", "to": "contract" },
+      { "from": "ui", "to": "pure-utility" }
+    ],
+    "policy": "docs/governance/DEPENDENCY-POLICY.yaml"
+  },
+  "syntheticFixtureGraphs": {
+    "completeSuite": {
+      "failed": 0,
+      "passed": 86,
+      "total": 86
+    },
+    "fixtureGraphCount": 64,
+    "negativeFixtureGraphCount": 54,
+    "positiveFixtureGraphCount": 10,
+    "requiredPositiveRelations": [
+      { "from": "frontend", "to": "sdk-client/contract", "fixture": "positive-frontend-sdk-contracts" },
+      { "from": "service", "to": "repository/contract", "fixture": "positive-service-repository-contracts" },
+      { "from": "repository", "to": "database-runtime", "fixture": "positive-repository-database-runtime" },
+      { "from": "contract", "to": "pure-utility", "fixture": "positive-contract-pure-utility" }
+    ],
+    "source": "scripts/governance/fixtures/dependency-dag/fixtures.mjs"
+  }
+}
