@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "hospital-workspace.hw00-04.source-state.v1",
+  "sourceMode": "none",
+  "sources": [],
+  "adoptions": [],
+  "sourceRequiredForBuild": false,
+  "sourceRequiredForCI": false,
+  "sourceRequiredForTests": false,
+  "sourceRequiredForRuntime": false,
+  "sourceRequiredForRelease": false,
+  "sourceRequiredForRollback": false,
+  "legacyRuntimeDependency": false,
+  "gitSubmodule": false,
+  "gitHistoryImported": false,
+  "broadCherryPick": false,
+  "unregisteredLegacyCopyCount": 0
+}
