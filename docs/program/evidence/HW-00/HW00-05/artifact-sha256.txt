@@ -1,0 +1,7 @@
+# SHA-256 of final public HW00-05 Evidence artifacts.
+# This manifest is excluded from its own contents.
+7a87935bad8085544e8fb5f1afb68b54a3f40e2fc1126f517a0f114ff6ebffb7  matrix-completeness.json
+171d038fce373aab2d5f691b446a1c7606202fcd33a498d666731e165c768de7  source-reference-report.md
+f5c276d371a79ed7f5acbd9aa7244b2da6a22e5f4dcaba731c947e1e7935a996  task-status.md
+12e7452883014b9645938d8e9358d12747870b13a38a8b200797a2317de49095  terra-review.md
+e900c2e2e0171c1ca9c399f18a8fedf800a00ac918c96e3678a3b8ea1b777eed  validation-results.md
