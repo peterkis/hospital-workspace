@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "hospital-workspace.hw00-05.matrix-completeness.v1",
+  "implementationCommit": "ff9fcb9c5aada76e991779236fc8a9ad1ef6dd93",
+  "implementationTreeObjectId": "fb8129ff4e483d2c336f0b8d1809d5aa1f2a841d",
+  "matrixBlobObjectId": "04aea85851ac9d979197c4881f57512a17685e4c",
+  "sourceRepository": "HirezmingD/Knowe-agent-groupchat",
+  "sourceCommit": "1e584f84734e9db55515ef4391fcb9e9c40399cd",
+  "sourceLicense": "MIT",
+  "totalDecisionRows": 64,
+  "decisionCounts": {
+    "ADOPT_CONCEPT": 4,
+    "ADAPT": 26,
+    "REFERENCE_ONLY": 2,
+    "EXCLUDE": 25,
+    "DEFER": 7
+  },
+  "uniqueSourcePathCount": 73,
+  "pinnedSourceLinkCount": 78,
+  "programTaskReferenceCount": 42,
+  "mutableReferenceCount": 0,
+  "copiedSourceFileCount": 0,
+  "copiedSourceSnippetCount": 0,
+  "copiedAssetCount": 0,
+  "copiedTestCount": 0,
+  "unresolvedDecisionCount": 0,
+  "conflictingAuthorityCount": 0,
+  "rowsWithTargetComponent": 32,
+  "rowsWithValidProgramTask": 32,
+  "rowsWithSecurityBoundary": 32,
+  "rowsWithAcceptanceEvidence": 32,
+  "highRiskRowsWithSafeReplacement": 25,
+  "validationStatus": "PASS"
+}
