@@ -603,6 +603,15 @@ Evidence binds:
 
 Do not rewrite approved evidence. Create a new evidence run.
 
+## 20.1 Risk-proportional Evidence handling
+
+- Low-risk documentation work normally has one implementation commit. GitHub `checks` and one read-only Terra review bound to the result are sufficient; do not create a committed task Evidence directory or per-Markdown SHA-256 manifest unless the task creates a durable domain, security, migration, database, release, product, or compliance artifact.
+- Medium-risk implementation work requires targeted local tests, full required CI, and a Terra review bound to the final PR head SHA or final staged tree. CI artifacts and PR metadata are the normal Evidence. Reviewer receipts are external to the reviewed Git tree.
+- High-risk, critical, migration, database, security, identity, authorization, Tauri, clinical, financial, rollback and Evidence-integrity work retains its task-declared structured Evidence and Terra/Sol route. This rule never weakens those gates.
+- Phase Gates use one consolidated phase Evidence set and the required `sol_phase_gate`; do not duplicate every low-risk task log in Git.
+- A CI artifact, GitHub PR review/comment, or parent-session receipt is immutable Evidence only when bound to the exact head SHA/tree. A review receipt must not be added to the same tree it reviews.
+- Do not run an identical full suite both locally and remotely unless the local environment is the target, CI failed, the reviewed result changed, or the task explicitly requires a second environment.
+
 ## 21. Git and PR rules
 
 - Do not work directly on `main`.

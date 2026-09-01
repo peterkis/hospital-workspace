@@ -10,6 +10,15 @@
 | Parent reviewer | ... |
 | Human owner | ... / not required |
 | Time | ... |
+| CI/PR receipt | external reference bound to the result |
+
+## CI/PR Evidence receipt
+
+| Field | Value |
+| --- | --- |
+| Workflow / PR | ... |
+| Exact head SHA/tree | ... |
+| Artifact reference | ... |
 
 ## Scope reviewed
 
@@ -19,7 +28,7 @@
 
 | Gate | Result | Evidence |
 | --- | --- | --- |
-| ... | PASS/FAIL/NOT_RUN | ... |
+| ... | PASS/FAIL/NOT_RUN/BLOCKED | ... |
 
 ## Required acceptance reports
 

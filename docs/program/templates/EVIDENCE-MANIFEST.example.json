@@ -1,71 +1,31 @@
 {
-  "schemaVersion": "hospital-workspace.evidence.v1",
+  "schemaVersion": "hospital-workspace.evidence.v3",
   "program": "hospital-workspace",
-  "phaseId": "HW-00",
-  "gateId": "G00-EXAMPLE",
-  "sourceCommit": "0000000000000000000000000000000000000000",
-  "resultCommit": null,
-  "workingTreeDigest": "0000000000000000000000000000000000000000000000000000000000000000",
+  "scope": { "kind": "task", "phaseId": "HW-00", "taskId": "HW00-06" },
+  "risk": "medium",
+  "acceptanceTier": "terra",
+  "sourceBinding": { "kind": "commit", "value": "0000000000000000000000000000000000000000" },
+  "resultBinding": { "kind": "tree", "value": "0000000000000000000000000000000000000000000000000000000000000000" },
+  "resultCommit": "0000000000000000000000000000000000000000",
   "branch": "hw/hw-00/example",
-  "environment": {
-    "os": "example",
-    "runtime": "example",
-    "notes": "Template only"
-  },
-  "commands": [
-    {
-      "command": "example",
-      "result": "NOT_RUN",
-      "exitCode": null,
-      "log": "example.log",
-      "environment": "example"
-    }
+  "environments": [
+    { "id": "ubuntu-ci", "required": true, "status": "NOT_RUN", "claims": ["ubuntu-ci"], "evidenceRefs": ["not-run://template"] },
+    { "id": "windows-tauri-webview2-msi", "required": false, "status": "NOT_RUN", "claims": ["windows-tauri-webview2-msi"], "evidenceRefs": ["not-run://template"] },
+    { "id": "physical-anolis", "required": false, "status": "NOT_RUN", "claims": ["physical-anolis"], "evidenceRefs": ["not-run://template"] }
   ],
-  "artifacts": [],
-  "negativeScenarios": [
-    {
-      "name": "example",
-      "result": "NOT_RUN",
-      "evidence": "example"
-    }
-  ],
-  "rollbackVerification": {
-    "result": "NOT_APPLICABLE",
-    "evidence": "template"
-  },
-  "reviewers": [
-    {
-      "name": "example",
-      "role": "reviewer",
-      "outcome": "REJECTED",
-      "report": "template"
-    }
-  ],
-  "knownLimitations": [
-    "Template only. Never register as PASS."
-  ],
+  "requiredCheckIds": ["foundation-checks"],
+  "checks": [{ "id": "foundation-checks", "required": true, "environment": "ubuntu-ci", "status": "NOT_RUN", "evidenceRef": "not-run://template" }],
+  "ciArtifacts": [{ "name": "template-report.json", "reference": "not-run://template", "binding": { "kind": "tree", "value": "0000000000000000000000000000000000000000000000000000000000000000" } }],
+  "negativeScenarios": [{ "id": "template-negative", "status": "NOT_RUN", "evidenceRef": "not-run://template" }],
+  "rollback": { "status": "NOT_APPLICABLE", "reference": "not-run://template", "rationale": "Template only.", "applicabilityBoundary": "No executed task.", "reviewerConfirmation": "No review requested." },
+  "recovery": { "status": "NOT_APPLICABLE", "reference": "not-run://template", "rationale": "Template only.", "applicabilityBoundary": "No executed task.", "reviewerConfirmation": "No review requested." },
+  "rehearsalRequirements": { "rollback": false, "recovery": false },
+  "requiredReviewAgents": [{ "agent": "terra_reviewer", "outcome": "APPROVED" }],
+  "reviewReceipts": [{ "schemaVersion": "hospital-workspace.review-receipt.v1", "reviewerRole": "reviewer", "agent": "terra_reviewer", "model": "external-model", "reviewType": "implementation", "sourceCommit": "0000000000000000000000000000000000000000", "resultCommit": "0000000000000000000000000000000000000000", "resultTree": "0000000000000000000000000000000000000000000000000000000000000000", "reviewedDiffBase": "0000000000000000000000000000000000000000", "reviewedDiffHead": "0000000000000000000000000000000000000000", "outcome": "APPROVED", "limitations": ["Template only."], "reference": "external://template" }],
+  "privacyCategories": { "patientData": "CLEAR", "employeePersonData": "CLEAR", "identityNumbers": "CLEAR", "diagnosisClinicalText": "CLEAR", "phone": "CLEAR", "email": "CLEAR", "detailedFee": "CLEAR", "cookie": "CLEAR", "token": "CLEAR", "password": "CLEAR", "apiKeyClientSecret": "CLEAR", "privateKeySigningMaterial": "CLEAR", "internalHostnameNetwork": "CLEAR", "clinicalPromptContent": "CLEAR" },
+  "dataClassification": "public-synthetic",
+  "limitations": ["Template only; this is not a PASS receipt."],
   "decision": "BLOCKED",
-  "decidedAt": "2026-08-24T00:00:00+09:00",
-  "modelReviews": [
-    {
-      "agent": "terra_reviewer",
-      "model": "gpt-5.6-terra",
-      "reviewType": "correctness",
-      "outcome": "REJECTED",
-      "sourceCommit": "0000000000000000000000000000000000000000",
-      "resultCommitOrTree": "0000000000000000000000000000000000000000000000000000000000000000",
-      "report": "template-terra-review.md",
-      "notes": "Template only"
-    },
-    {
-      "agent": "sol_phase_gate",
-      "model": "gpt-5.6-sol",
-      "reviewType": "phase_gate",
-      "outcome": "BLOCKED",
-      "sourceCommit": "0000000000000000000000000000000000000000",
-      "resultCommitOrTree": "0000000000000000000000000000000000000000000000000000000000000000",
-      "report": "template-sol-phase-gate.md",
-      "notes": "Template only"
-    }
-  ]
+  "decisionOwner": "parent_codex",
+  "decidedAt": "2026-08-31T00:00:00Z"
 }

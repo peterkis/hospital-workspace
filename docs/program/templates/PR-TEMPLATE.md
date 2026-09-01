@@ -59,6 +59,7 @@ Commands and evidence:
 - Required Sol outcomes:
 - Reviewed result commit/tree:
 - Reports:
+- External CI/PR receipt bound to reviewed SHA/tree:
 
 ## Rollback
 

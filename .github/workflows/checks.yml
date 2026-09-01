@@ -13,17 +13,51 @@ jobs:
   checks:
     name: checks
     runs-on: ubuntu-latest
+    env:
+      HW_CI_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      HW_CI_RUN_ID: ${{ github.run_id }}
+      HW_CI_RUN_ATTEMPT: ${{ github.run_attempt }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: "24.18.0"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          version: "11.17.0"
+          run_install: false
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.13"
+
+      - name: Verify pinned toolchain contract
+        run: |
+          test "$(node --version)" = "v24.18.0"
+          test "$(pnpm --version)" = "11.17.0"
+          python -c "import sys; assert sys.version_info[:2] == (3, 13)"
+          node -e "const p=require('./package.json'); if (p.packageManager !== 'pnpm@11.17.0' || p.engines?.node !== '24.18.0' || p.engines?.pnpm !== '11.17.0') process.exit(1)"
 
       - name: Install bootstrap validator dependency
         run: python -m pip install --disable-pip-version-check -r tools/requirements-bootstrap.txt
 
-      - name: Validate public repository foundation
-        run: python tools/validate_repository.py --git-index
+      - name: Run required foundation checks
+        run: node scripts/governance/run-foundation-checks.mjs --report-dir "$RUNNER_TEMP/hospital-workspace-checks"
+
+      - name: Upload sanitized check reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: checks-reports-${{ env.HW_CI_COMMIT_SHA }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/hospital-workspace-checks
+          if-no-files-found: error
