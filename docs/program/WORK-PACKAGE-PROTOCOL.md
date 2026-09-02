@@ -74,6 +74,13 @@ After implementation:
 9. After all tasks pass, run phase-level Sol agents and `sol_phase_gate`.
 10. Parent records Evidence and issues final Gate.
 
+## Lean Evidence route
+
+- Low-risk documentation packages normally use one implementation commit, GitHub `checks`, and a read-only Terra receipt bound to the result. Do not require a committed Evidence directory or per-Markdown hash manifest unless the task declares a durable domain, security, migration, database, release, product, or compliance artifact.
+- Medium-risk packages use targeted local tests, full CI, and `terra_reviewer` bound to the final PR head SHA or staged tree. CI artifacts and PR metadata are the normal Evidence; the reviewer receipt stays outside the reviewed tree.
+- High/critical packages and phase exits retain their declared structured Evidence, rollback/negative/recovery evidence, and Terra/Sol routing. `sol_phase_gate` remains required at phase exit.
+- Do not rerun the same full suite locally and remotely without a target-environment, CI-failure, changed-result, or explicit-task reason.
+
 ## Independence
 
 - Acceptance agents do not edit the reviewed task.
