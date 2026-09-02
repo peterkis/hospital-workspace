@@ -1,0 +1,238 @@
+{
+  "schemaVersion": "hospital-workspace.evidence.v3",
+  "program": "hospital-workspace",
+  "scope": {
+    "kind": "phase",
+    "phaseId": "HW-00",
+    "taskId": null
+  },
+  "risk": "critical",
+  "acceptanceTier": "sol-phase-gate",
+  "sourceBinding": {
+    "kind": "commit",
+    "value": "2736393ca5d38081282270f29b01b2b0f9f671df"
+  },
+  "resultBinding": {
+    "kind": "tree",
+    "value": "ad695394f9d70bafec95dfd12eb559c7604d2385"
+  },
+  "resultCommit": "2736393ca5d38081282270f29b01b2b0f9f671df",
+  "branch": "hw/hw-00/hw00-07-f0-gate",
+  "environments": [
+    {
+      "id": "ubuntu-ci",
+      "required": true,
+      "status": "PASS",
+      "claims": [
+        "ubuntu-ci"
+      ],
+      "evidenceRefs": [
+        "ci://github-actions/peterkis/hospital-workspace/runs/33600028132"
+      ]
+    },
+    {
+      "id": "windows-tauri-webview2-msi",
+      "required": false,
+      "status": "NOT_RUN",
+      "claims": [
+        "windows-tauri-webview2-msi"
+      ],
+      "evidenceRefs": [
+        "not-run://hw00-07/out-of-scope"
+      ]
+    },
+    {
+      "id": "physical-anolis",
+      "required": false,
+      "status": "NOT_RUN",
+      "claims": [
+        "physical-anolis"
+      ],
+      "evidenceRefs": [
+        "not-run://hw00-07/out-of-scope"
+      ]
+    }
+  ],
+  "requiredCheckIds": [
+    "repository-foundation",
+    "instructions-agent-routing",
+    "public-safety",
+    "dependency-ownership",
+    "legacy-external-source",
+    "ci-integrity",
+    "evidence-semantics",
+    "task-closure-pr-integrity",
+    "node20-warning-classification"
+  ],
+  "checks": [
+    {
+      "id": "repository-foundation",
+      "required": true,
+      "environment": "ubuntu-ci",
+      "status": "PASS",
+      "evidenceRef": "ci://github-actions/peterkis/hospital-workspace/runs/33600028132/artifacts/9834843477/foundation-check-report.json"
+    },
+    {
+      "id": "instructions-agent-routing",
+      "required": true,
+      "environment": "ubuntu-ci",
+      "status": "PASS",
+      "evidenceRef": "github://peterkis/hospital-workspace/commits/2736393ca5d38081282270f29b01b2b0f9f671df"
+    },
+    {
+      "id": "public-safety",
+      "required": true,
+      "environment": "ubuntu-ci",
+      "status": "PASS",
+      "evidenceRef": "ci://github-actions/peterkis/hospital-workspace/runs/33600028132/artifacts/9834843477/public-safety-report.json"
+    },
+    {
+      "id": "dependency-ownership",
+      "required": true,
+      "environment": "ubuntu-ci",
+      "status": "PASS",
+      "evidenceRef": "ci://github-actions/peterkis/hospital-workspace/runs/33600028132/artifacts/9834843477/foundation-check-report.json"
+    },
+    {
+      "id": "legacy-external-source",
+      "required": true,
+      "environment": "ubuntu-ci",
+      "status": "PASS",
+      "evidenceRef": "ci://github-actions/peterkis/hospital-workspace/runs/33600028132/artifacts/9834843477/foundation-check-report.json"
+    },
+    {
+      "id": "ci-integrity",
+      "required": true,
+      "environment": "ubuntu-ci",
+      "status": "PASS",
+      "evidenceRef": "ci://github-actions/peterkis/hospital-workspace/runs/33600028132"
+    },
+    {
+      "id": "evidence-semantics",
+      "required": true,
+      "environment": "ubuntu-ci",
+      "status": "PASS",
+      "evidenceRef": "ci://github-actions/peterkis/hospital-workspace/runs/33600028132/artifacts/9834843477/evidence-schema-report.json"
+    },
+    {
+      "id": "task-closure-pr-integrity",
+      "required": true,
+      "environment": "ubuntu-ci",
+      "status": "PASS",
+      "evidenceRef": "pr://github/peterkis/hospital-workspace/6-and-7"
+    },
+    {
+      "id": "node20-warning-classification",
+      "required": true,
+      "environment": "ubuntu-ci",
+      "status": "PASS",
+      "evidenceRef": "github://peterkis/hospital-workspace/check-runs/100151463289/annotations"
+    }
+  ],
+  "ciArtifacts": [
+    {
+      "name": "checks-reports-2736393ca5d38081282270f29b01b2b0f9f671df-33600028132-1",
+      "reference": "ci://github-actions/peterkis/hospital-workspace/runs/33600028132/artifacts/9834843477?sha256=86c94702a0a8d72dfc95da67662e3b2d24a348ee07894573898f07ab4431007c",
+      "binding": {
+        "kind": "tree",
+        "value": "ad695394f9d70bafec95dfd12eb559c7604d2385"
+      }
+    }
+  ],
+  "negativeScenarios": [
+    {
+      "id": "forbidden-dependency-and-cycle-fixtures",
+      "status": "PASS",
+      "evidenceRef": "ci://github-actions/peterkis/hospital-workspace/runs/33600028132/artifacts/9834843477/foundation-check-report.json"
+    },
+    {
+      "id": "legacy-manifest-invalid-source-fixtures",
+      "status": "PASS",
+      "evidenceRef": "ci://github-actions/peterkis/hospital-workspace/runs/33600028132/artifacts/9834843477/foundation-check-report.json"
+    },
+    {
+      "id": "public-safety-secret-private-network-and-invalid-utf8-fixtures",
+      "status": "PASS",
+      "evidenceRef": "ci://github-actions/peterkis/hospital-workspace/runs/33600028132/artifacts/9834843477/public-safety-report.json"
+    },
+    {
+      "id": "evidence-fail-conditional-blocked-and-model-routing-fixtures",
+      "status": "PASS",
+      "evidenceRef": "ci://github-actions/peterkis/hospital-workspace/runs/33600028132/artifacts/9834843477/evidence-schema-report.json"
+    },
+    {
+      "id": "real-pr-and-push-diff-ranges",
+      "status": "PASS",
+      "evidenceRef": "ci://github-actions/peterkis/hospital-workspace/runs/33600028132"
+    },
+    {
+      "id": "required-review-model-substitution-rejected",
+      "status": "PASS",
+      "evidenceRef": "pr://github/peterkis/hospital-workspace/7"
+    },
+    {
+      "id": "blocked-manifest-may-omit-unavailable-review-without-fabrication",
+      "status": "PASS",
+      "evidenceRef": "pr://github/peterkis/hospital-workspace/7"
+    }
+  ],
+  "rollback": {
+    "status": "NOT_APPLICABLE",
+    "reference": "parent-session://hw00-07/docs-only-gate",
+    "rationale": "HW00-07 writes only public phase Evidence and the HW-00 status row; it creates no runtime, database, deployment, migration, or irreversible state.",
+    "applicabilityBoundary": "If the uncommitted Gate candidate is rejected, the four-path write lock can be abandoned without altering accepted main. Any later committed correction must use a separately reviewed pull request; published Git history is not erased.",
+    "reviewerConfirmation": "Required reviewers are instructed to confirm this exact documentation-only applicability boundary before any parent PASS; their external receipts are the confirmation authority."
+  },
+  "recovery": {
+    "status": "NOT_APPLICABLE",
+    "reference": "parent-session://hw00-07/no-runtime-state",
+    "rationale": "The F0 Gate neither executes nor changes an application, service, database, deployment, hospital integration, or end-user state, so there is no runtime state to recover.",
+    "applicabilityBoundary": "Recovery testing becomes mandatory in the later task or phase that creates the corresponding runtime or data authority; HW00-07 cannot claim those environments.",
+    "reviewerConfirmation": "Required reviewers are instructed to confirm this exact no-runtime-state boundary before any parent PASS; their external receipts are the confirmation authority."
+  },
+  "rehearsalRequirements": {
+    "rollback": false,
+    "recovery": false
+  },
+  "requiredReviewAgents": [
+    {
+      "agent": "terra_reviewer",
+      "outcome": "APPROVED"
+    },
+    {
+      "agent": "terra_security",
+      "outcome": "APPROVED"
+    },
+    {
+      "agent": "sol_phase_gate",
+      "outcome": "PASS_RECOMMENDED"
+    }
+  ],
+  "reviewReceipts": [],
+  "privacyCategories": {
+    "patientData": "CLEAR",
+    "employeePersonData": "CLEAR",
+    "identityNumbers": "CLEAR",
+    "diagnosisClinicalText": "CLEAR",
+    "phone": "CLEAR",
+    "email": "CLEAR",
+    "detailedFee": "CLEAR",
+    "cookie": "CLEAR",
+    "token": "CLEAR",
+    "password": "CLEAR",
+    "apiKeyClientSecret": "CLEAR",
+    "privateKeySigningMaterial": "CLEAR",
+    "internalHostnameNetwork": "CLEAR",
+    "clinicalPromptContent": "CLEAR"
+  },
+  "dataClassification": "public-synthetic",
+  "limitations": [
+    "The Node20 deprecation annotation is classified as a non-blocking P2 maintenance item owned by toolchain-owner and due 2026-09-16, before GitHub's 2026-09-23 removal date; this Gate does not change the workflow.",
+    "Ubuntu CI does not prove Windows Tauri, WebView2, MSI, physical Anolis, real upstream integration, hospital pilot, or production behavior.",
+    "The repository intentionally has zero child workspaces and no product or platform implementation in HW-00.",
+    "This pre-review candidate remains BLOCKED only until the three required external review receipts are returned and recorded; no receipt is fabricated."
+  ],
+  "decision": "BLOCKED",
+  "decisionOwner": "parent_codex",
+  "decidedAt": "2026-09-02T07:18:32.5950753Z"
+}
