@@ -14,6 +14,11 @@ import { basename, isAbsolute, resolve, relative, dirname, join, sep } from "nod
 const NODE_VERSION = "24.18.0";
 const PNPM_VERSION = "11.17.0";
 const TYPESCRIPT_VERSION = "7.0.2";
+const ROOT_DEV_DEPENDENCIES = Object.freeze({
+  ajv: "8.20.0",
+  "ajv-formats": "3.0.1",
+  typescript: TYPESCRIPT_VERSION
+});
 const QUALITY_SCRIPTS = ["build", "lint", "typecheck", "test", "check", "format:check"];
 const PROHIBITED_LOCKFILES = new Set([
   "package-lock.json",
@@ -267,8 +272,12 @@ function checkRootManifest(rootManifest, errors) {
     }
   }
   const devDependencies = rootManifest.devDependencies;
-  if (!devDependencies || Object.keys(devDependencies).length !== 1 || devDependencies.typescript !== TYPESCRIPT_VERSION) {
-    fail(errors, "root-dev-dependencies-must-be-exact-typescript-7.0.2");
+  if (
+    !devDependencies ||
+    Object.keys(devDependencies).length !== Object.keys(ROOT_DEV_DEPENDENCIES).length ||
+    Object.entries(ROOT_DEV_DEPENDENCIES).some(([name, version]) => devDependencies[name] !== version)
+  ) {
+    fail(errors, "root-dev-dependencies-must-match-approved-exact-set");
   }
   checkScripts(rootManifest, "root", errors, false);
 }

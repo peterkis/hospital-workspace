@@ -31,7 +31,7 @@ function manifest(overrides = {}) {
     packageManager: "pnpm@11.17.0",
     engines: { node: "24.18.0", pnpm: "11.17.0" },
     scripts: qualityScripts,
-    devDependencies: { typescript: "7.0.2" },
+    devDependencies: { ajv: "8.20.0", "ajv-formats": "3.0.1", typescript: "7.0.2" },
     ...overrides
   };
 }
@@ -160,6 +160,25 @@ test("rejects a second JavaScript lockfile", () => {
     assert.notEqual(result.status, 0);
     assert.match(result.stdout, /prohibited-lockfile:yarn\.lock/);
   });
+});
+
+test("requires the exact approved root development dependency set", () => {
+  for (const devDependencies of [
+    { typescript: "7.0.2" },
+    { ajv: "^8.20.0", "ajv-formats": "3.0.1", typescript: "7.0.2" },
+    { ajv: "8.20.0", "ajv-formats": "3.0.1", typescript: "7.0.2", unexpected: "1.0.0" }
+  ]) {
+    const root = createFixture((fixtureRoot) => {
+      write(fixtureRoot, "package.json", `${JSON.stringify(manifest({ devDependencies }), null, 2)}\n`);
+    });
+    try {
+      const result = run(root);
+      assert.notEqual(result.status, 0, result.stdout);
+      assert.match(result.stdout, /root-dev-dependencies-must-match-approved-exact-set/);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
 });
 
 test("rejects a registered workspace with a missing quality script", () => {

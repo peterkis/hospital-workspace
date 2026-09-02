@@ -10,7 +10,7 @@
 | Result commit | full 40-character SHA |
 | Result tree | full Git tree object ID (40 or 64 hexadecimal characters) |
 | Reviewed diff base / head | full source and result commit SHAs |
-| Outcome | APPROVED / REJECTED / CONDITIONAL |
+| Outcome | `terra_reviewer` / `terra_security`: APPROVED / CHANGES_REQUESTED; `sol_acceptance` / `sol_architecture_security`: ACCEPT / REJECT / BLOCKED; `sol_phase_gate`: PASS_RECOMMENDED / CONDITIONAL_RECOMMENDED / BLOCKED |
 | External receipt reference | GitHub PR / CI / parent session |
 | Limitations | ... |
 

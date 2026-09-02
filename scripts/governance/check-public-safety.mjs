@@ -4,6 +4,7 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, relative, resolve, sep } from "node:path";
 import { spawnSync } from "node:child_process";
+import { containsProhibitedNetworkReference } from "./public-network-policy.mjs";
 
 const SCHEMA = "hospital-workspace.public-safety-report.v1";
 const GLOBAL_ERROR_PATH = "__public_safety__";
@@ -46,7 +47,7 @@ const ALLOWED_LEGACY_COPY_REFERENCE_HASHES = new Map([
 ]);
 // Exception entries must bind one path, one rule, and the complete blob hash; empty by default is fail closed.
 const BLOB_EXCEPTIONS = new Map([
-  ["docs/program/templates/EVIDENCE-MANIFEST.schema.json\0CREDENTIAL_ASSIGNMENT_PATTERN", new Set(["ca4e031b32d3ac8bc1583b30244476d7d0273fdbdecf124a44265138bbc4f7fe"])]
+  ["docs/program/templates/EVIDENCE-MANIFEST.schema.json\0CREDENTIAL_ASSIGNMENT_PATTERN", new Set(["0e7cf65026bdb3dadfa55a84fefd34f40a6480d162d1bbc2da08b6879d4a0dfc"])]
 ]);
 function posix(value) { return value.split(sep).join("/"); }
 function finding(path, rule) { return { path, rule }; }
@@ -96,7 +97,7 @@ function scan(root, indexOnly) {
     if (sourceSibling(path, paths)) add("GENERATED_SOURCE_BESIDE_TYPESCRIPT"); if (/^scripts\/phase-[0-9]+(?:\/|-)/i.test(path)) add("LEGACY_PHASE_SCRIPT"); if (/(?:^|\/)(?:legacy\/|legacy[-_]copy|legacy-source-copy)/i.test(path)) add("UNREGISTERED_LEGACY_COPY");
     if (binaryControl(text)) add("BINARY_BLOB_UNAPPROVED"); if (/-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----/i.test(text)) add("PRIVATE_KEY_MARKER"); if (credentialAssignment(text, path)) add("CREDENTIAL_ASSIGNMENT_PATTERN");
     if (/(?:[A-Za-z]:[\\/]Users[\\/]|\/(?:Users|home)\/[^/\\\s]+)/.test(text)) add("PUBLIC_ABSOLUTE_USER_PROFILE_PATH");
-    if (/\b(?:10\.(?!0\.0\.)\d{1,3}\.\d{1,3}\.\d{1,3}|127\.\d{1,3}\.\d{1,3}\.\d{1,3}|169\.254\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})\b|\b(?![a-z0-9.-]*example\.internal\b)[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:local|lan|corp|internal)\b/i.test(text) || INTERNAL_IPV6.test(text)) add("PROHIBITED_INTERNAL_NETWORK_REFERENCE");
+    if (containsProhibitedNetworkReference(text) || /\b(?![a-z0-9.-]*example\.internal\b)[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:local|lan|corp|internal)\b/i.test(text) || INTERNAL_IPV6.test(text)) add("PROHIBITED_INTERNAL_NETWORK_REFERENCE");
     if (hasUnapprovedReference(path, text, PORTAL_PREFIX, ALLOWED_PORTAL_REFERENCE_HASHES)) add("LEGACY_PORTAL_ALIAS");
     if (hasUnapprovedReference(path, text, LEGACY_COPY_MARKER, ALLOWED_LEGACY_COPY_REFERENCE_HASHES)) add("UNREGISTERED_LEGACY_COPY");
   }
