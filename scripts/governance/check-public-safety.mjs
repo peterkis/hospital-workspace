@@ -47,7 +47,7 @@ const ALLOWED_LEGACY_COPY_REFERENCE_HASHES = new Map([
 ]);
 // Exception entries must bind one path, one rule, and the complete blob hash; empty by default is fail closed.
 const BLOB_EXCEPTIONS = new Map([
-  ["docs/program/templates/EVIDENCE-MANIFEST.schema.json\0CREDENTIAL_ASSIGNMENT_PATTERN", new Set(["0e7cf65026bdb3dadfa55a84fefd34f40a6480d162d1bbc2da08b6879d4a0dfc"])]
+  ["docs/program/templates/EVIDENCE-MANIFEST.schema.json\0CREDENTIAL_ASSIGNMENT_PATTERN", new Set(["17b421a3028668dd67012c5c9e8ef95156b976882516649249ec855087f74b9d"])]
 ]);
 function posix(value) { return value.split(sep).join("/"); }
 function finding(path, rule) { return { path, rule }; }
