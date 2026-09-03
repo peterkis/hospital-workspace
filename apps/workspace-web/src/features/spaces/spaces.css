@@ -1,0 +1,6 @@
+.space-list { display: grid; gap: 4px; margin-top: 23px; }
+.space-item { align-items: center; background: transparent; border: 1px solid transparent; border-radius: 9px; color: var(--ink); display: grid; gap: 8px; grid-template-columns: 30px minmax(0, 1fr); padding: 9px 8px; text-align: left; }
+.space-item:hover { background: #f9faf6; }.space-item.selected { background: var(--paper-strong); border-color: #d3ded9; box-shadow: 0 4px 11px rgb(28 42 44 / 5%); }
+.space-icon { align-items: center; background: #e1e8e3; border-radius: 7px; color: var(--accent-strong); display: inline-flex; height: 30px; justify-content: center; }.space-item.selected .space-icon { background: var(--accent-faint); }
+.space-copy { display: grid; gap: 2px; min-width: 0; }.space-copy strong { font-size: 13px; font-weight: 690; }.space-copy small { color: var(--muted); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.space-count { color: #657675; font-size: 9px; grid-column: 2; margin-top: -5px; }

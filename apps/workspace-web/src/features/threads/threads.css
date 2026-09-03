@@ -1,0 +1,2 @@
+.thread-strip { display: flex; gap: 7px; margin: 16px 0 21px; overflow-x: auto; padding-bottom: 3px; }
+.thread-tab { background: #ebece7; border: 1px solid transparent; border-radius: 8px; color: #586462; display: grid; flex: 0 0 180px; gap: 5px; padding: 10px; text-align: left; }.thread-tab span { color: var(--ink); font-size: 11px; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }.thread-tab small { color: #788381; font-size: 9px; }.thread-tab.selected { background: var(--accent-faint); border-color: #acd3ca; }
