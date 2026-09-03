@@ -8,12 +8,13 @@
     "pnpm": "11.17.0"
   },
   "scripts": {
-    "build": "node scripts/governance/check-workspace-contract.mjs --validate",
-    "lint": "node scripts/governance/check-workspace-contract.mjs --format-check",
-    "typecheck": "tsc --project tsconfig.json --noEmit",
-    "test": "node --test scripts/governance/check-workspace-contract.test.mjs",
+    "build": "node scripts/governance/check-workspace-contract.mjs --validate && pnpm --filter @hospital/workspace-web run build",
+    "lint": "node scripts/governance/check-workspace-contract.mjs --format-check && pnpm --filter @hospital/workspace-web run lint",
+    "typecheck": "tsc --project tsconfig.json --noEmit && pnpm --filter @hospital/workspace-web run typecheck",
+    "test": "node --test scripts/governance/check-workspace-contract.test.mjs && pnpm --filter @hospital/workspace-web run test",
     "check": "pnpm run build && pnpm run lint && pnpm run typecheck && pnpm run test",
-    "format:check": "node scripts/governance/check-workspace-contract.mjs --format-check"
+    "format:check": "node scripts/governance/check-workspace-contract.mjs --format-check && pnpm --filter @hospital/workspace-web run format:check",
+    "dev:workspace": "pnpm --filter @hospital/workspace-web run dev"
   },
   "devDependencies": {
     "ajv": "8.20.0",

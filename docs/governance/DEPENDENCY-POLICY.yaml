@@ -7,7 +7,7 @@
     "database-runtime": [],
     "desktop-shell": [],
     "domain-service": ["fastify"],
-    "frontend": ["react"],
+    "frontend": ["@testing-library/dom", "@testing-library/react", "@types/react", "@types/react-dom", "@vitejs/plugin-react", "jsdom", "react", "react-dom", "typescript", "vite", "vitest"],
     "infrastructure-kernel": [],
     "platform-service": ["fastify"],
     "pure-utility": ["zod"],
