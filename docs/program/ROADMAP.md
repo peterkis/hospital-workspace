@@ -19,6 +19,18 @@ Person
 → Outcome
 ```
 
+## Active execution overlay after F0
+
+Product-First MVP-0 is the current near-term execution sequence after the
+accepted `F0-CLEAN-FOUNDATION` Gate. The canonical `HW-01` through `HW-12`
+roadmap remains the production hardening roadmap and is not rewritten by the
+overlay. MVP slices do not mark canonical tasks complete. After `MVP-07`, the
+Parent and human owner decide how to re-enter the canonical roadmap.
+
+The overlay is active only through the Product Direction Gate and is
+public-synthetic and browser-first. It authorizes no hospital pilot or
+production claim. See [`mvp/MVP-EXECUTION-OVERLAY.yaml`](mvp/MVP-EXECUTION-OVERLAY.yaml).
+
 ## Sources
 
 - Legacy code whitelist: `optional owner-controlled legacy source configured locally`

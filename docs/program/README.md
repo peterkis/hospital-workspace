@@ -45,6 +45,8 @@ A missing, stale, rejected or blocked required Sol report prevents task/phase ac
 
 A repository implementation must explicitly record the current phase and last PASS Gate in `docs/program/STATUS.md`. The package does not pre-mark any Gate as passed.
 
+When active, the near-term Product-First MVP execution overlay is defined in [`mvp/README.md`](mvp/README.md).
+
 ## No background assumptions
 
 No legacy source is required. Knowe is pinned only as a public interaction/mechanism reference. If the owner enables an optional local legacy source, its full commit must be recorded in ignored local configuration and in a migration receipt; absence of that source never blocks implementation from the target contracts.

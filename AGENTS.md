@@ -637,3 +637,19 @@ Read:
 - accepted ADRs.
 
 If current code conflicts with a plan, stop and surface the conflict. Do not silently implement the document or silently rewrite the architecture.
+
+## 23. Product-First MVP execution overlay
+
+After F0 and while the MVP overlay is active:
+
+- Parent reads `docs/program/mvp/MVP-EXECUTION-OVERLAY.yaml` before choosing the next task.
+- Parent executes only the current MVP slice; do not mechanically start `HW01-01`.
+- No high/critical canonical boundary is downgraded to an MVP shortcut.
+- Low/medium MVP slices use one commit, CI and one external read-only Terra review.
+- Do not create recursive committed Evidence for the overlay.
+- Only the human owner may retire or replace the overlay.
+
+Carry forward P2-F0-01 exactly: owner `toolchain-owner`; due `2026-09-16`;
+required before `2026-09-23`; migrate four Node20-declaring Actions to reviewed
+Node24-native full-SHA pins. This maintenance item does not block MVP-01 and
+must not be silently deferred.
