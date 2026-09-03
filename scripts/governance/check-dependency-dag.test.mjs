@@ -147,7 +147,39 @@ function run(root, policyPath = policy) {
   return spawnSync(process.execPath, [checker, "--root", root, "--policy", policyPath], { encoding: "utf8" });
 }
 
-test("current intentionally empty child-workspace repository passes deterministically", () => {
+const approvedFrontendDependencies = {
+  "@testing-library/dom": "10.4.1",
+  "@testing-library/react": "16.3.3",
+  "@types/react": "19.2.18",
+  "@types/react-dom": "19.2.5",
+  "@vitejs/plugin-react": "6.1.1",
+  jsdom: "30.0.1",
+  react: "19.2.8",
+  "react-dom": "19.2.8",
+  typescript: "7.0.2",
+  vite: "8.2.2",
+  vitest: "4.1.11"
+};
+
+function frontendDependencyFixture(mutator = () => {}) {
+  const root = mkdtempSync(join(tmpdir(), "hospital-workspace-frontend-dependencies-"));
+  writeOwnership(root, ownershipYaml());
+  write(root, "pnpm-workspace.yaml", "packages:\n  - \"apps/workspace-web\"\n");
+  const manifest = {
+    name: "@hospital/workspace-web",
+    version: "0.0.0",
+    private: true,
+    type: "module",
+    dependencies: { react: "19.2.8", "react-dom": "19.2.8" },
+    devDependencies: Object.fromEntries(Object.entries(approvedFrontendDependencies).filter(([name]) => name !== "react" && name !== "react-dom"))
+  };
+  mutator(manifest);
+  write(root, "apps/workspace-web/package.json", `${JSON.stringify(manifest, null, 2)}\n`);
+  write(root, "apps/workspace-web/src/index.tsx", 'import "react";\n');
+  return root;
+}
+
+test("current one-workspace repository passes deterministically", () => {
   const first = run(repositoryRoot);
   const second = run(repositoryRoot);
   assert.equal(first.status, 0, first.stdout);
@@ -155,8 +187,59 @@ test("current intentionally empty child-workspace repository passes deterministi
   const report = JSON.parse(first.stdout);
   assert.equal(report.status, "PASS");
   assert.equal(report.ownership.canonicalRuleCount > 0, true);
-  assert.equal(report.workspaceCount, 0);
+  assert.equal(report.workspaceCount, 1);
+  assert.deepEqual(report.workspacePatterns, ["apps/workspace-web"]);
   assert.deepEqual(report.findings, []);
+});
+
+test("accepts the exact approved React and Vite frontend dependency set, including devDependencies", () => {
+  const root = frontendDependencyFixture();
+  try {
+    const result = run(root);
+    assert.equal(result.status, 0, result.stdout);
+    assert.equal(JSON.parse(result.stdout).status, "PASS", result.stdout);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("rejects unapproved component, state, and network packages even as frontend devDependencies", () => {
+  for (const dependency of ["@radix-ui/react-dialog", "zustand", "axios"]) {
+    const root = frontendDependencyFixture((manifest) => {
+      manifest.devDependencies[dependency] = "1.0.0";
+    });
+    try {
+      const result = run(root);
+      assert.equal(result.status, 1, result.stdout);
+      const report = JSON.parse(result.stdout);
+      assert.equal(report.findings.some((finding) => finding.code === "FRONTEND_EXTERNAL_DEPENDENCY_NOT_ALLOWED" && finding.to === dependency && finding.detail === "devDependencies"), true, result.stdout);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
+test("continues to reject Node, Fastify, Prisma, Redis, and Tauri from frontend source or manifests", () => {
+  const cases = [
+    { dependency: "fastify", source: null },
+    { dependency: "prisma", source: null },
+    { dependency: "redis", source: null },
+    { dependency: "@tauri-apps/api", source: null },
+    { dependency: null, source: 'import "node:fs";\n' }
+  ];
+  for (const entry of cases) {
+    const root = frontendDependencyFixture((manifest) => {
+      if (entry.dependency) manifest.dependencies[entry.dependency] = "1.0.0";
+    });
+    try {
+      if (entry.source) write(root, "apps/workspace-web/src/index.tsx", entry.source);
+      const result = run(root);
+      assert.equal(result.status, 1, result.stdout);
+      assert.equal(JSON.parse(result.stdout).findings.some((finding) => finding.code === "FRONTEND_FORBIDDEN_RUNTIME"), true, result.stdout);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
 });
 
 test("rejects unknown dependency policy fields", () => {

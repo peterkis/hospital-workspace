@@ -38,8 +38,20 @@ BANNED_PATH_PARTS = {
     "certificates/local", "certificates/private", "branding/private", "secrets", "evidence/private",
 }
 BANNED_EXTENSIONS = {".key", ".p12", ".pfx", ".jks", ".keystore", ".kdb", ".csr", ".srl"}
+IPV4_OCTET = r"(?:25[0-5]|2[0-4]\d|1\d{2}|[1-9]?\d)"
+PRIVATE_IPV4_PATTERN = re.compile(
+    rf"(?<![A-Za-z0-9_.@-])"
+    rf"(?!10\.0\.0\.0(?![0-9.]))"
+    rf"(?:"
+    rf"10\.{IPV4_OCTET}\.{IPV4_OCTET}\.{IPV4_OCTET}|"
+    rf"172\.(?:1[6-9]|2\d|3[01])\.{IPV4_OCTET}\.{IPV4_OCTET}|"
+    rf"192\.168\.{IPV4_OCTET}\.{IPV4_OCTET}"
+    rf")"
+    rf"(?![A-Za-z0-9_@+-])"
+    rf"(?!\.[A-Za-z0-9_@+-])"
+)
 BANNED_PATTERNS = [
-    ("private_ipv4", re.compile(r"\b(?:10\.(?!0\.0\.)\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}|192\.168\.\d{1,3}\.\d{1,3})\b")),
+    ("private_ipv4", PRIVATE_IPV4_PATTERN),
     ("internal_hostname", re.compile(r"\b(?![a-z0-9.-]*example\.internal\b)[a-z0-9-]+(?:\.[a-z0-9-]+)*\.(?:local|lan|corp)\b", re.I)),
     ("private_key", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")),
 ]

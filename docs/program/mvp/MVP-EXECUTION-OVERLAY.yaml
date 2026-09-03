@@ -8,7 +8,7 @@ sourceF0Gate:
   acceptedTree: ad695394f9d70bafec95dfd12eb559c7604d2385
   evidence: docs/program/evidence/HW-00/F0-CLEAN-FOUNDATION/F0-gate-decision.md
 state: active
-currentSlice: MVP-01
+currentSlice: MVP-02
 currentSliceState: not-started
 owner: human-owner
 planningTask:
