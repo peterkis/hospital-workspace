@@ -1,0 +1,273 @@
+schemaVersion: hospital-workspace.mvp-overlay.v1
+overlayId: PRODUCT-FIRST-MVP-0
+title: Product-First MVP execution overlay
+sourceF0Gate:
+  id: F0-CLEAN-FOUNDATION
+  decision: PASS
+  acceptedCommit: 2736393ca5d38081282270f29b01b2b0f9f671df
+  acceptedTree: ad695394f9d70bafec95dfd12eb559c7604d2385
+  evidence: docs/program/evidence/HW-00/F0-CLEAN-FOUNDATION/F0-gate-decision.md
+state: active
+currentSlice: MVP-01
+currentSliceState: not-started
+owner: human-owner
+planningTask:
+  risk: low
+  primaryAgent: luna_docs
+  supportingAgents: [luna_explorer]
+  requiredReviewer: terra_reviewer
+  reviewOutcomeRequired: APPROVED
+startCondition:
+  - F0-CLEAN-FOUNDATION is PASS.
+  - HW-00 is complete and HW-01 is not started.
+  - Parent confirms this overlay is the current execution sequence.
+exitCondition:
+  - MVP-07 has one allowed Product Direction outcome.
+  - Parent and human owner choose the next canonical or overlay route.
+  - Only the human owner may retire or replace this overlay.
+globalNonGoals:
+  - No hospital pilot or production readiness claim.
+  - No real hospital data, credentials, private configuration, or hospital integration.
+  - No canonical task is marked DONE by an MVP subset.
+  - No downgrade or bypass of high/critical identity, authorization, database, Outbox, Tauri, or sensitive-data boundaries.
+  - No production shortcut, compatibility runtime, or authoritative domain state in the browser prototype.
+slices:
+  - id: MVP-01
+    title: Visible Workspace Shell
+    purpose: Create the first visible React/Vite Workspace shell with public synthetic fixtures.
+    visibleOutcome: Three-column shell with header, navigation, spaces, timeline, Context/Canvas panel, and empty/loading/error/permission-denied states.
+    requiredVisibleStructure:
+      - top workspace header
+      - left primary navigation
+      - capability/space list
+      - central thread/activity timeline
+      - right Context/Canvas panel
+      - empty, loading, error, and permission-denied states
+    initialSyntheticSpaces: [My Work, IT Support, Fee Confirmation, Agent Collaboration, Knowledge Work]
+    primaryOwningBoundary: workspace-web UI
+    primaryAgent: terra_worker
+    supportingAgents: [luna_fixtures, terra_browser]
+    risk: medium
+    allowedPaths:
+      - apps/workspace-web/**
+      - packages/ui/**
+      - packages/workspace-contracts/**
+    nonGoals: [backend, database, real identity, Tauri, hospital data]
+    dependsOn: []
+    sourceTaskMappings:
+      - taskId: HW03-02
+        relation: primary UI shell subset
+      - taskId: HW05-07
+        relation: UI-only subset
+    visibleValidation: shell renders all required states and synthetic spaces in the browser.
+  - id: MVP-02
+    title: Synthetic Thread, Timeline, Card and Canvas Runtime
+    purpose: Prove the core interaction model with deterministic in-memory fixtures.
+    visibleOutcome: User can select spaces and threads, inspect activity, see structured cards, and open/close Context/Canvas with pending/success/conflict states.
+    primaryOwningBoundary: workspace-web interaction runtime
+    primaryAgent: terra_worker
+    supportingAgents: [luna_fixtures, terra_browser]
+    risk: medium
+    allowedPaths:
+      - apps/workspace-web/src/features/spaces/**
+      - apps/workspace-web/src/features/threads/**
+      - apps/workspace-web/src/features/timeline/**
+      - apps/workspace-web/src/features/cards/**
+      - apps/workspace-web/src/features/canvas/**
+      - packages/workspace-contracts/**
+      - packages/workitem-contracts/**
+      - packages/card-protocol/**
+      - packages/capability-sdk/**
+    nonGoals: [authoritative domain write, arbitrary executable Schema App]
+    dependsOn: [MVP-01]
+    sourceTaskMappings:
+      - taskId: HW05-01
+        relation: interaction-model subset
+      - taskId: HW05-02
+        relation: Card/Canvas presentation subset
+      - taskId: HW05-07
+        relation: UI/runtime subset
+    activityKinds: [user, system, Agent, decision]
+    visibleValidation: deterministic selection and visual command states are browser-observable.
+  - id: MVP-03
+    title: Synthetic Ticket Experience
+    purpose: Let a user experience the complete reporting workflow without a real backend.
+    visibleOutcome: Synthetic Ticket moves through submit, triage, assign, accept, in-progress, resolve, confirm-close, and reopen with attachment reference, SLA, and participant changes visible.
+    primaryOwningBoundary: workspace-web Ticket experience
+    primaryAgent: terra_worker
+    supportingAgents: [luna_fixtures, terra_browser]
+    risk: medium
+    allowedPaths:
+      - apps/workspace-web/src/capabilities/tickets/**
+      - packages/ticket-contracts/**
+      - packages/ui/**
+    nonGoals: [real backend, real attachment storage, production SLA, hospital data]
+    fixtureMode: deterministic local fixtures only
+    dependsOn: [MVP-02]
+    sourceTaskMappings:
+      - taskId: HW06-02
+        relation: Ticket contract and state-machine experience subset
+      - taskId: HW06-06
+        relation: UX subset
+    visibleValidation: two synthetic roles can observe each displayed lifecycle state and limitation.
+  - id: MVP-04
+    title: Minimal Local BFF and Synthetic Persona Boundary
+    purpose: Replace direct fixture mutation with a minimal local HTTP boundary.
+    visibleOutcome: Typed reads, typed commands, synthetic persona/role/scope values, and deterministic command receipts cross a local HTTP boundary.
+    primaryOwningBoundary: local prototype BFF
+    primaryAgent: terra_worker
+    supportingAgents: [terra_contracts, terra_tester]
+    risk: medium
+    allowedPaths:
+      - services/gateway/**
+      - packages/api-client/**
+      - apps/workspace-web/src/platform/api/**
+    nonGoals: [real authentication, cookies, production Session, hospital API, private network configuration]
+    dependsOn: [MVP-03]
+    sourceTaskMappings:
+      - taskId: HW02-01
+        relation: non-security Principal concept subset
+      - taskId: HW02-03
+        relation: non-security local BFF structural subset
+      - taskId: HW05-05
+        relation: typed receipt subset
+    canonicalStatusGuard: No HW-02 identity or authorization task is complete.
+    visibleValidation: browser requests use typed local APIs and display deterministic receipts.
+  - id: MVP-05
+    title: In-memory Ticket Domain Vertical Slice
+    purpose: Move Ticket state authority out of UI into an independent in-memory prototype service.
+    visibleOutcome: Typed Ticket state machine enforces expectedVersion, idempotency key, actor/action validation, receipts, and domain event output.
+    primaryOwningBoundary: in-memory Ticket prototype service
+    primaryAgent: terra_worker
+    supportingAgents: [terra_contracts, terra_tester]
+    risk: medium
+    allowedPaths:
+      - services/tickets/**
+      - packages/ticket-contracts/**
+    nonGoals: [PostgreSQL, Prisma, Outbox, Redis, real authorization, disk attachments, deployment]
+    dependsOn: [MVP-04]
+    sourceTaskMappings:
+      - taskId: HW06-02
+        relation: prototype subset
+      - taskId: HW06-03
+        relation: prototype state-authority subset; no database acceptance
+      - taskId: HW06-04
+        relation: prototype event-output subset; no Outbox acceptance
+    limitation: Restart loss is explicitly accepted as a prototype limitation.
+    canonicalStatusGuard: No canonical high/critical task is accepted.
+    visibleValidation: duplicate and stale commands produce deterministic receipts and visible conflict handling.
+  - id: MVP-06
+    title: Two-person Browser Product E2E
+    purpose: Prove the product flow for synthetic reporter and engineer personas.
+    visibleOutcome: Reporter submits; engineer sees assigned work, accepts, updates progress, resolves; reporter sees the same timeline and closes or reopens.
+    primaryOwningBoundary: browser product E2E harness
+    primaryAgent: terra_tester
+    supportingAgents: [terra_browser, luna_fixtures]
+    risk: medium
+    allowedPaths:
+      - apps/workspace-web/e2e/**
+      - services/tickets/test/**
+      - packages/testkit/**
+    nonGoals: [real identity, hospital data, production acceptance, Tauri/Desktop acceptance]
+    dependsOn: [MVP-05]
+    sourceTaskMappings:
+      - taskId: HW04-07
+        relation: prototype synthetic event E2E subset
+      - taskId: HW05-08
+        relation: prototype Work Item/Harness E2E subset
+      - taskId: HW06-07
+        relation: prototype concurrent/failure UX subset
+    acceptanceFlow:
+      - reporter submits a Ticket
+      - engineer sees assigned work
+      - engineer accepts and updates progress
+      - reporter sees the same timeline
+      - engineer resolves
+      - reporter closes or reopens
+      - duplicate commands do not duplicate transitions
+      - stale expectedVersion displays conflict and refresh path
+    visibleValidation: browser-only flow passes with public synthetic data and explicit limitations.
+  - id: MVP-07
+    title: Product Direction Gate
+    purpose: Human and Parent review of the product direction after the synthetic flow.
+    visibleOutcome: A recorded direction decision answers the six product questions and selects an allowed outcome.
+    primaryOwningBoundary: Parent and human-owner product decision
+    primaryAgent: parent_codex
+    supportingAgents: [luna_docs, luna_explorer, terra_reviewer]
+    risk: medium
+    allowedPaths:
+      - docs/program/mvp/**
+    nonGoals: [production Gate, hospital pilot Gate, canonical HW06-08 acceptance]
+    dependsOn: [MVP-06]
+    sourceTaskMappings:
+      - taskId: HW06-08
+        relation: product-direction precursor subset only; does not satisfy or start the canonical Gate
+    questions:
+      - Is the conversation/work-item model understandable?
+      - Are Card and Canvas responsibilities clear?
+      - Does Ticket feel better than a traditional menu-based portal?
+      - Is the three-column layout suitable for daily hospital IT work?
+      - Which concepts should be retained, changed, or deleted?
+      - Is the product direction strong enough to justify database, Identity, Outbox, and Tauri hardening?
+    allowedOutcomes: [ADOPT_AND_HARDEN, REVISE_AND_REPEAT, STOP_AND_REDIRECT]
+    visibleValidation: Parent and human owner record one allowed outcome; no canonical task is marked complete.
+dependencies:
+  type: DAG
+  order: [MVP-01, MVP-02, MVP-03, MVP-04, MVP-05, MVP-06, MVP-07]
+  uniqueness: each slice ID is unique and each dependency is declared once.
+planningAllowedPaths:
+  - AGENTS.md
+  - docs/adr/0009-adopt-product-first-mvp-execution-overlay.md
+  - docs/program/README.md
+  - docs/program/ROADMAP.md
+  - docs/program/mvp/README.md
+  - docs/program/mvp/MVP-EXECUTION-OVERLAY.yaml
+  - docs/program/mvp/MVP-ACCEPTANCE.md
+riskPolicy:
+  planningTaskRisk: low
+  lowMediumSliceEvidenceRoute: one implementation commit, GitHub checks, and one external read-only terra_reviewer receipt bound to the final result.
+  committedTaskEvidence: false
+  planningTaskSolRequired: false
+  highCriticalBoundaryPolicy: Stop the overlay slice and use canonical task routing with its original risk, Evidence, and required Sol acceptance.
+validation:
+  - YAML parses.
+  - Every sourceTaskMappings.taskId exists in the canonical task YAML.
+  - Dependency IDs are unique, acyclic, and do not exceed MVP-07.
+  - External references are immutable or repository-local; no mutable external source is an authority.
+  - Referenced paths comply with current dependency and public-data policy.
+  - Repository Public Safety passes.
+  - Repository validator passes.
+  - git diff --check passes.
+  - Path-lock scan confirms only allowed paths changed.
+acceptance:
+  requiredReviewer: terra_reviewer
+  requiredOutcome: APPROVED
+  finalAuthority: parent_codex
+  humanDecision: Product Direction outcome at MVP-07 only; no pilot or production authorization.
+sourceTaskMappings:
+  MVP-01: [HW03-02, HW05-07]
+  MVP-02: [HW05-01, HW05-02, HW05-07]
+  MVP-03: [HW06-02, HW06-06]
+  MVP-04: [HW02-01, HW02-03, HW05-05]
+  MVP-05: [HW06-02, HW06-03, HW06-04]
+  MVP-06: [HW04-07, HW05-08, HW06-07]
+  MVP-07: [HW06-08]
+adoptionCriteria:
+  - Product Direction outcome is recorded by Parent and human owner.
+  - Each retained prototype capability is mapped to a canonical task owner and original risk/acceptance route.
+  - Adopted code is hardened with canonical contracts, negative/recovery tests, evidence, and required reviews.
+  - Prototype limitations and any deleted or rejected code are recorded; no subset is silently promoted.
+stopConditions:
+  - Any authority or security conflict with an accepted ADR or canonical architecture.
+  - A proposed slice would introduce real hospital data, credentials, private configuration, or production integration.
+  - A high/critical canonical boundary would be bypassed or downgraded.
+  - A required path, dependency, mapping, or validation fact cannot be established.
+  - The human owner retires or replaces the overlay.
+p2Maintenance:
+  id: P2-F0-01
+  owner: toolchain-owner
+  due: 2026-09-16
+  requiredBefore: 2026-09-23
+  actions: [actions/checkout, actions/setup-node, actions/setup-python, actions/upload-artifact]
+  requirement: Migrate four Node20-declaring Actions to reviewed Node24-native full-SHA pins.
+  blocksMVP01: false
