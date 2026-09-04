@@ -8,7 +8,7 @@ sourceF0Gate:
   acceptedTree: ad695394f9d70bafec95dfd12eb559c7604d2385
   evidence: docs/program/evidence/HW-00/F0-CLEAN-FOUNDATION/F0-gate-decision.md
 state: active
-currentSlice: MVP-03
+currentSlice: MVP-04
 currentSliceState: not-started
 owner: human-owner
 planningTask:
@@ -161,6 +161,32 @@ slices:
       - services/gateway/**
       - packages/api-client/**
       - apps/workspace-web/src/platform/api/**
+      - apps/workspace-web/src/capabilities/tickets/**
+      - apps/workspace-web/src/App.tsx
+      - apps/workspace-web/src/App.test.tsx
+      - apps/workspace-web/src/source-contract.test.ts
+      - apps/workspace-web/package.json
+      - package.json
+      - pnpm-workspace.yaml
+      - pnpm-lock.yaml
+      - docs/governance/DEPENDENCY-POLICY.yaml
+      - scripts/governance/check-dependency-dag.test.mjs
+    bootstrapBoundary:
+      purpose: Activate the first local prototype service and typed API-client workspaces only.
+      constraints:
+        - Root package/workspace/lock changes may only register the local gateway and API client and exact dependencies.
+        - App package changes may only declare the typed local API client.
+        - Dependency-policy and DAG-test changes may only govern those declared direct dependencies.
+        - No production deployment, database, hospital endpoint, private network, credential, cookie, real Session or real authentication.
+        - No insecure CORS wildcard or arbitrary egress.
+    integrationBoundary:
+      purpose: Replace direct browser Fixture mutation through an injected typed local API boundary.
+      constraints:
+        - Ticket capability may consume an injected typed client but remains non-authoritative.
+        - App.tsx may compose the client/provider but owns no identity or Ticket state.
+        - source-contract.test.ts may permit network access only through the registered platform/api module.
+        - Direct fetch calls outside platform/api remain prohibited.
+        - No hospital API, production Session, real authorization or private endpoint.
     nonGoals: [real authentication, cookies, production Session, hospital API, private network configuration]
     dependsOn: [MVP-03]
     sourceTaskMappings:

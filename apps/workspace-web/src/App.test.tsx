@@ -8,6 +8,23 @@ function renderScenario(scenario: WorkspaceScenario = "normal") { return render(
 afterEach(() => vi.useRealTimers());
 
 describe("MVP-02 workspace composition", () => {
+  it("runs the complete local Ticket lifecycle across both presentation personas", () => {
+    vi.useFakeTimers();
+    renderScenario();
+    const spaces = within(screen.getByRole("complementary", { name: "能力空间" }));
+    fireEvent.click(spaces.getByRole("button", { name: /IT Support/ }));
+    const actions = ["提交本地合成报修", "分诊本地合成报修", "接入演示工程师", "接受演示分派", "开始本地合成处理", "标记演示解决", "确认本地合成关闭", "重新打开本地合成展示"];
+    fireEvent.click(screen.getByRole("button", { name: actions[0] }));
+    act(() => vi.advanceTimersByTime(SYNTHETIC_RECEIPT_DELAY_MS));
+    fireEvent.click(screen.getByRole("button", { name: /Demo IT Engineer/ }));
+    for (const action of actions.slice(1, 6)) { fireEvent.click(screen.getByRole("button", { name: action })); act(() => vi.advanceTimersByTime(SYNTHETIC_RECEIPT_DELAY_MS)); }
+    fireEvent.click(screen.getByRole("button", { name: /Synthetic Reporter/ }));
+    for (const action of actions.slice(6)) { fireEvent.click(screen.getByRole("button", { name: action })); act(() => vi.advanceTimersByTime(SYNTHETIC_RECEIPT_DELAY_MS)); }
+    expect(screen.getAllByText("当前步骤 · 已重新打开（演示）").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/演示版本/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Demo IT Engineer").length).toBeGreaterThan(0);
+  });
+
   it("preserves principal shell regions and all five spaces", () => {
     renderScenario();
     expect(screen.getByRole("banner")).toBeTruthy();
@@ -23,6 +40,8 @@ describe("MVP-02 workspace composition", () => {
     renderScenario();
     const spaces = within(screen.getByRole("complementary", { name: "能力空间" }));
     fireEvent.click(spaces.getByRole("button", { name: /IT Support/ }));
+    expect(screen.getAllByRole("heading", { name: "演示工作站无法输出文档" }).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: /共享工作台准备/ }));
     expect(screen.getByRole("heading", { name: "共享工作台准备" })).toBeTruthy();
     fireEvent.click(spaces.getByRole("button", { name: /My Work/ }));
     fireEvent.click(screen.getByRole("button", { name: /交接前的背景核对/ }));
