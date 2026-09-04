@@ -8,7 +8,7 @@ sourceF0Gate:
   acceptedTree: ad695394f9d70bafec95dfd12eb559c7604d2385
   evidence: docs/program/evidence/HW-00/F0-CLEAN-FOUNDATION/F0-gate-decision.md
 state: active
-currentSlice: MVP-02
+currentSlice: MVP-03
 currentSliceState: not-started
 owner: human-owner
 planningTask:
@@ -88,10 +88,24 @@ slices:
       - apps/workspace-web/src/features/timeline/**
       - apps/workspace-web/src/features/cards/**
       - apps/workspace-web/src/features/canvas/**
+      - apps/workspace-web/src/App.tsx
+      - apps/workspace-web/src/App.test.tsx
+      - apps/workspace-web/src/fixtures/**
+      - apps/workspace-web/src/source-contract.test.ts
+      - apps/workspace-web/src/styles.css
       - packages/workspace-contracts/**
       - packages/workitem-contracts/**
       - packages/card-protocol/**
       - packages/capability-sdk/**
+    integrationBoundary:
+      purpose: Integrate feature modules into the existing MVP-01 shell only.
+      constraints:
+        - App.tsx remains a composition root and does not become a domain authority.
+        - Existing fixtures remain deterministic and public-synthetic.
+        - App.test.tsx covers cross-feature product composition only.
+        - source-contract.test.ts expands browser-boundary scans to all product features.
+        - styles.css contains only shared shell tokens/layout integration; feature styling remains under the owning feature directory where practical.
+        - No root package, lockfile, dependency policy, workflow, backend, network, identity, database, Tauri, or production protocol change.
     nonGoals: [authoritative domain write, arbitrary executable Schema App]
     dependsOn: [MVP-01]
     sourceTaskMappings:
@@ -113,8 +127,19 @@ slices:
     risk: medium
     allowedPaths:
       - apps/workspace-web/src/capabilities/tickets/**
+      - apps/workspace-web/src/App.tsx
+      - apps/workspace-web/src/App.test.tsx
+      - apps/workspace-web/src/source-contract.test.ts
       - packages/ticket-contracts/**
       - packages/ui/**
+    integrationBoundary:
+      purpose: Connect the synthetic Ticket capability to the existing Workspace shell only.
+      constraints:
+        - App.tsx may compose and select the Ticket capability but does not own Ticket domain truth.
+        - App.test.tsx verifies only cross-shell visibility and the synthetic lifecycle experience.
+        - source-contract.test.ts expands browser-boundary scanning to capabilities/tickets source.
+        - Ticket-specific models, fixtures, runtime, components, styles, and tests remain under apps/workspace-web/src/capabilities/tickets/**.
+        - No root dependency, lockfile, workflow, backend, network, persistence, identity, Tauri, canonical contract, pilot, or production change.
     nonGoals: [real backend, real attachment storage, production SLA, hospital data]
     fixtureMode: deterministic local fixtures only
     dependsOn: [MVP-02]
