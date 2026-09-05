@@ -179,7 +179,7 @@ function frontendDependencyFixture(mutator = () => {}) {
   return root;
 }
 
-test("current one-workspace repository passes deterministically", () => {
+test("current two-workspace repository passes deterministically", () => {
   const first = run(repositoryRoot);
   const second = run(repositoryRoot);
   assert.equal(first.status, 0, first.stdout);
@@ -187,9 +187,102 @@ test("current one-workspace repository passes deterministically", () => {
   const report = JSON.parse(first.stdout);
   assert.equal(report.status, "PASS");
   assert.equal(report.ownership.canonicalRuleCount > 0, true);
-  assert.equal(report.workspaceCount, 1);
-  assert.deepEqual(report.workspacePatterns, ["apps/workspace-web"]);
+  assert.equal(report.workspaceCount, 2);
+  assert.deepEqual(report.workspacePatterns, ["apps/workspace-web", "services/gateway"]);
+  assert.deepEqual(report.workspaces.map((workspace) => [workspace.path, workspace.layer]), [
+    ["apps/workspace-web", "frontend"],
+    ["services/gateway", "platform-service"]
+  ]);
+  assert.equal(report.workspaces.some((workspace) => workspace.path === "packages/api-client"), false);
   assert.deepEqual(report.findings, []);
+});
+
+function gatewayDependencyFixture(mutator = () => {}) {
+  const root = mkdtempSync(join(tmpdir(), "hospital-workspace-gateway-dependencies-"));
+  writeOwnership(root, ownershipYaml());
+  write(root, "pnpm-workspace.yaml", "packages:\n  - \"services/gateway\"\n");
+  const manifest = {
+    name: "@hospital/gateway",
+    version: "0.0.0",
+    private: true,
+    type: "module",
+    dependencies: { fastify: "5.12.1" },
+    devDependencies: { "@types/node": "24.13.3" }
+  };
+  mutator(manifest);
+  write(root, "services/gateway/package.json", `${JSON.stringify(manifest, null, 2)}\n`);
+  write(root, "services/gateway/src/app.ts", 'import Fastify from "fastify";\nexport const app = Fastify();\n');
+  return root;
+}
+
+test("allows only the reviewed Fastify and Node 24 declarations for Gateway", () => {
+  const root = gatewayDependencyFixture();
+  try {
+    const result = run(root);
+    assert.equal(result.status, 0, result.stdout);
+    const report = JSON.parse(result.stdout);
+    assert.deepEqual(report.workspaces, [
+      { layer: "platform-service", name: "@hospital/gateway", path: "services/gateway" }
+    ]);
+    assert.deepEqual(report.findings, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("does not make Node types generally legal for unrelated enforced layers", () => {
+  const root = frontendDependencyFixture((manifest) => {
+    manifest.devDependencies["@types/node"] = "24.13.3";
+  });
+  try {
+    const result = run(root);
+    assert.equal(result.status, 1, result.stdout);
+    assert.equal(JSON.parse(result.stdout).findings.some((finding) =>
+      finding.code === "FRONTEND_EXTERNAL_DEPENDENCY_NOT_ALLOWED" &&
+      finding.to === "@types/node" &&
+      finding.detail === "devDependencies"
+    ), true, result.stdout);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("continues to reject Prisma Redis and pg from Gateway", () => {
+  for (const dependency of ["@prisma/client", "prisma", "ioredis", "redis", "pg"]) {
+    const root = gatewayDependencyFixture((manifest) => {
+      manifest.dependencies[dependency] = "1.0.0";
+    });
+    try {
+      const result = run(root);
+      assert.equal(result.status, 1, result.stdout);
+      assert.equal(JSON.parse(result.stdout).findings.some((finding) =>
+        finding.code === "SERVICE_RAW_DATABASE_DEPENDENCY" && finding.to === dependency
+      ), true, result.stdout);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  }
+});
+
+test("Workspace Web cannot privately or deeply import Gateway", () => {
+  const root = gatewayDependencyFixture();
+  try {
+    write(root, "pnpm-workspace.yaml", "packages:\n  - \"apps/workspace-web\"\n  - \"services/gateway\"\n");
+    write(root, "apps/workspace-web/package.json", `${JSON.stringify({
+      name: "@hospital/workspace-web",
+      version: "0.0.0",
+      private: true,
+      dependencies: { "@hospital/gateway": "workspace:*", react: "19.2.8" }
+    }, null, 2)}\n`);
+    write(root, "apps/workspace-web/src/index.tsx", 'import "@hospital/gateway/src/app.ts";\n');
+    const result = run(root);
+    assert.equal(result.status, 1, result.stdout);
+    const findings = JSON.parse(result.stdout).findings;
+    assert.equal(findings.some((finding) => finding.code === "PRIVATE_DEEP_IMPORT"), true, result.stdout);
+    assert.equal(findings.some((finding) => finding.code === "FRONTEND_FORBIDDEN_RUNTIME"), true, result.stdout);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });
 
 test("accepts the exact approved React and Vite frontend dependency set, including devDependencies", () => {

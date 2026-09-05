@@ -8,13 +8,15 @@
     "pnpm": "11.17.0"
   },
   "scripts": {
-    "build": "node scripts/governance/check-workspace-contract.mjs --validate && pnpm --filter @hospital/workspace-web run build",
-    "lint": "node scripts/governance/check-workspace-contract.mjs --format-check && pnpm --filter @hospital/workspace-web run lint",
-    "typecheck": "tsc --project tsconfig.json --noEmit && pnpm --filter @hospital/workspace-web run typecheck",
-    "test": "node --test scripts/governance/check-workspace-contract.test.mjs && pnpm --filter @hospital/workspace-web run test",
+    "build": "node scripts/governance/check-workspace-contract.mjs --validate && pnpm --filter @hospital/workspace-web run build && pnpm --filter @hospital/gateway run build",
+    "lint": "node scripts/governance/check-workspace-contract.mjs --format-check && pnpm --filter @hospital/workspace-web run lint && pnpm --filter @hospital/gateway run lint",
+    "typecheck": "tsc --project tsconfig.json --noEmit && pnpm --filter @hospital/workspace-web run typecheck && pnpm --filter @hospital/gateway run typecheck",
+    "test": "node --test scripts/governance/check-workspace-contract.test.mjs && pnpm --filter @hospital/workspace-web run test && pnpm --filter @hospital/gateway run test",
     "check": "pnpm run build && pnpm run lint && pnpm run typecheck && pnpm run test",
-    "format:check": "node scripts/governance/check-workspace-contract.mjs --format-check && pnpm --filter @hospital/workspace-web run format:check",
-    "dev:workspace": "pnpm --filter @hospital/workspace-web run dev"
+    "format:check": "node scripts/governance/check-workspace-contract.mjs --format-check && pnpm --filter @hospital/workspace-web run format:check && pnpm --filter @hospital/gateway run format:check",
+    "dev:workspace": "pnpm --filter @hospital/workspace-web run dev",
+    "dev:gateway": "pnpm --filter @hospital/gateway run dev",
+    "dev:mvp": "node scripts/governance/check-workspace-contract.mjs --validate && pnpm -r --parallel --filter @hospital/workspace-web --filter @hospital/gateway run dev"
   },
   "devDependencies": {
     "ajv": "8.20.0",
