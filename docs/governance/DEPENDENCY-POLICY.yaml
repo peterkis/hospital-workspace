@@ -9,7 +9,7 @@
     "domain-service": ["fastify"],
     "frontend": ["@testing-library/dom", "@testing-library/react", "@types/react", "@types/react-dom", "@vitejs/plugin-react", "jsdom", "react", "react-dom", "typescript", "vite", "vitest"],
     "infrastructure-kernel": [],
-    "platform-service": ["fastify"],
+    "platform-service": ["@types/node", "fastify"],
     "pure-utility": ["zod"],
     "repository": [],
     "sdk-client": [],

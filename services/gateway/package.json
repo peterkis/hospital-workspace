@@ -1,0 +1,25 @@
+{
+  "name": "@hospital/gateway",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "24.18.0",
+    "pnpm": "11.17.0"
+  },
+  "scripts": {
+    "build": "pnpm run typecheck",
+    "lint": "node --test test/source-boundary.test.ts",
+    "typecheck": "tsc --project tsconfig.json --noEmit",
+    "test": "node --test test/*.test.ts",
+    "check": "pnpm run build && pnpm run lint && pnpm run typecheck && pnpm run test",
+    "format:check": "node --test test/format.test.ts",
+    "dev": "node src/server.ts"
+  },
+  "dependencies": {
+    "fastify": "5.12.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3"
+  }
+}
