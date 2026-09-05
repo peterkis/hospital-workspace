@@ -159,33 +159,53 @@ slices:
     risk: medium
     allowedPaths:
       - services/gateway/**
-      - packages/api-client/**
       - apps/workspace-web/src/platform/api/**
       - apps/workspace-web/src/capabilities/tickets/**
       - apps/workspace-web/src/App.tsx
       - apps/workspace-web/src/App.test.tsx
       - apps/workspace-web/src/source-contract.test.ts
-      - apps/workspace-web/package.json
+      - apps/workspace-web/vite.config.ts
       - package.json
       - pnpm-workspace.yaml
       - pnpm-lock.yaml
       - docs/governance/DEPENDENCY-POLICY.yaml
       - scripts/governance/check-dependency-dag.test.mjs
+    architecturePreflight:
+      status: READY_FOR_IMPLEMENTATION
+      implementationState: not-started
+      sourceMainCommit: 62e9724da85651a3f594cb698f5ddb820b0288ec
+      sourceMainTree: 2e25be26d2fe125d30b09a806c81baf4bac79cb6
+      governanceBlocker:
+        id: MVP04-GOV-01
+        status: RESOLVED
+        pullRequest: 13
+        implementationCommit: 970369d613cbb7da0eb2a532479690007b963612
+        mergeCommit: 62e9724da85651a3f594cb698f5ddb820b0288ec
+        mainCiRun: 33931625052
+        mainCiResult: success
+      i01Readiness: READY_AFTER_PREFLIGHT_MERGE
     bootstrapBoundary:
-      purpose: Activate the first local prototype service and typed API-client workspaces only.
+      purpose: Plan activation of one local Gateway workspace with an app-local typed client only.
       constraints:
-        - Root package/workspace/lock changes may only register the local gateway and API client and exact dependencies.
-        - App package changes may only declare the typed local API client.
-        - Dependency-policy and DAG-test changes may only govern those declared direct dependencies.
+        - MVP04-GOV-01 is RESOLVED by the merged explicit mirrored ownership rule for docs/governance/DEPENDENCY-POLICY.yaml; no ownership edit is authorized here.
+        - The governance rule establishes owner toolchain-owner, reviewers architecture-reviewer, supply-chain-reviewer and security-reviewer, and critical risk; it does not approve Fastify, @types/node, versions, Gateway implementation, Identity, Session or authorization.
+        - Root package/workspace/lock changes may only register services/gateway, its exact Fastify runtime and Node-24-compatible @types/node dev dependency, and both-workspace development and quality commands.
+        - packages/api-client is deferred; no app package dependency change or canonical contract workspace.
+        - Dependency-policy changes may only add @types/node to the platform-service allowlist after the ownership prerequisite; DAG tests update exact workspace inventory and dependency coverage.
+        - vite.config.ts may only add the fixed loopback same-origin development proxy for /api/mvp/ with bounded public-safe failures and no credential forwarding.
         - No production deployment, database, hospital endpoint, private network, credential, cookie, real Session or real authentication.
         - No insecure CORS wildcard or arbitrary egress.
     integrationBoundary:
-      purpose: Replace direct browser Fixture mutation through an injected typed local API boundary.
+      purpose: Gate local synthetic Ticket projection changes on typed HTTP receipts without moving Ticket authority into Gateway.
       constraints:
         - Ticket capability may consume an injected typed client but remains non-authoritative.
         - App.tsx may compose the client/provider but owns no identity or Ticket state.
-        - source-contract.test.ts may permit network access only through the registered platform/api module.
+        - Gateway is stateless for Ticket aggregates and evaluates only request shape and fixed synthetic persona/action/version rules; no Ticket lifecycle, repository, idempotency authority or Outbox.
+        - Synthetic persona/role/scope values are presentation constraints only, never Principal, authenticated identity, real Authz, security Scope or Session.
+        - source-contract.test.ts scans all browser product source and permits only fixed relative /api/mvp targets inside platform/api; other transports and persistence remain prohibited.
         - Direct fetch calls outside platform/api remain prohibited.
+        - Accepted synthetic receipt is not domain completion; pending, failure, cancellation and late responses cannot silently fall back to local acceptance.
+        - Ticket aggregate authority is reserved for services/tickets in the separately authorized MVP-05 slice.
         - No hospital API, production Session, real authorization or private endpoint.
     nonGoals: [real authentication, cookies, production Session, hospital API, private network configuration]
     dependsOn: [MVP-03]

@@ -1,0 +1,455 @@
+schemaVersion: hospital-workspace.mvp04-prototype-boundary.v1
+id: MVP-04-ARCHITECTURE-PREFLIGHT
+status: READY_FOR_IMPLEMENTATION
+implementationState: not-started
+sourceMainCommit: 62e9724da85651a3f594cb698f5ddb820b0288ec
+sourceMainTree: 2e25be26d2fe125d30b09a806c81baf4bac79cb6
+sourceMergedPullRequest: 13
+initialPreflightBase:
+  commit: a427fd99067bf593db17ba8e29dd0c981a1c9815
+  tree: 11efc1685b4deb95d78e749346f852776e3758c9
+resumeBase:
+  commit: 62e9724da85651a3f594cb698f5ddb820b0288ec
+  tree: 2e25be26d2fe125d30b09a806c81baf4bac79cb6
+historicalBlockedRun:
+  stagedTree: c26c0ad7dd2fe2b70dce7a3037fd542e770d5ca6
+  result: BLOCKED
+  blocker: MVP04-GOV-01
+governanceResolution:
+  id: MVP04-GOV-01
+  status: RESOLVED
+  pullRequest: 13
+  implementationCommit: 970369d613cbb7da0eb2a532479690007b963612
+  mergeCommit: 62e9724da85651a3f594cb698f5ddb820b0288ec
+  mainCommit: 62e9724da85651a3f594cb698f5ddb820b0288ec
+  mainTree: 2e25be26d2fe125d30b09a806c81baf4bac79cb6
+  mainCiRun: 33931625052
+  mainCiResult: success
+  established: Who may review a future Dependency Policy change.
+  didNotApprove: [fastify, '@types/node', any-dependency-version, Gateway-implementation, Identity, Session, authorization]
+chosenTopology: A
+rejectedTopologies:
+  B: No present second consumer; unnecessary SDK workspace and missing canonical ownership.
+  C: Unnecessary cross-origin browser API and CORS diverge from the accepted same-origin direction.
+workspacesBefore: [apps/workspace-web]
+workspacesAfter: [apps/workspace-web, services/gateway]
+apiClientWorkspace:
+  path: packages/api-client
+  disposition: intentionally-deferred
+  reason: One browser consumer does not justify another workspace yet.
+  ownership: No explicit PATH-OWNERSHIP rule.
+  resolution: ownership gap avoided by minimal topology; no ownership mutation required.
+browserApiBoundary:
+  directory: apps/workspace-web/src/platform/api
+  fetchFile: apps/workspace-web/src/platform/api/mvp-api-client.ts
+  methods: [readBootstrap, sendCommand]
+  consumer: apps/workspace-web/src/capabilities/tickets
+  compositionRoot: apps/workspace-web/src/App.tsx
+  transportInjection: Required; App creates the client and Ticket receives it.
+  endpointArgument: false
+  callerHeadersArgument: false
+  requestInitArgument: false
+  credentials: omit
+  redirect: error
+  cache: no-store
+  mode: same-origin
+  timeoutMs: 5000
+  maximumResponseBytes: 8192
+  invalidResponse: quarantine-without-local-transition
+  commandRetry: Explicit only; frozen envelope after transport failure, new identity after resolved rejection or conflict.
+  bootstrapFallback: forbidden
+  commandFallback: forbidden
+gatewayBoundary:
+  directory: services/gateway
+  packageName: '@hospital/gateway'
+  layer: platform-service
+  ownerRole: identity-access-owner
+  reviewRoles: [security-reviewer, architecture-reviewer]
+  risk: critical
+  bindHost: '::1'
+  port: 3001
+  hostOrPortOverride: false
+  trustProxy: false
+  allowedHostHeaders: ['localhost:5173', '[::1]:3001']
+  allowedPresentOrigins: ['http://localhost:5173']
+  missingOriginForLocalTools: allowed
+  nullOrigin: rejected
+  maxRequestBodyBytes: 4096
+  requestTimeoutMs: 5000
+  logger: false
+  exposeHeadRoutes: false
+  responseHeaders:
+    cache-control: no-store
+    x-content-type-options: nosniff
+  validation:
+    provider: Fastify-native-static-JSON-Schema
+    additionalProperties: false
+    coerceTypes: false
+    removeAdditional: false
+    useDefaults: false
+  forbiddenRuntimeCapabilities:
+    - Ticket aggregate store or lifecycle state machine
+    - repository or durable receipt/idempotency store
+    - domain events or Outbox
+    - database or Redis
+    - filesystem, shell or subprocess operations
+    - outbound HTTP or user-directed proxy
+    - authentication, Authz, security Scope or Session
+    - token, cookie or secret custody
+    - request-body, access or raw error logging
+  testOnlyFileReads: Source/format checks may read files; handlers may not.
+sameOriginStrategy:
+  kind: fixed-vite-development-proxy
+  browserOrigin: http://localhost:5173
+  viteConfig: apps/workspace-web/vite.config.ts
+  viteHost: localhost
+  vitePort: 5173
+  strictPort: true
+  allowedHosts: [localhost]
+  viteCors: false
+  proxyKey: '^/api/mvp/'
+  target: http://[::1]:3001
+  loopbackSelection: Explicit IPv6 loopback; current Public Safety rejects numeric IPv4 loopback references.
+  ipv6Unavailable: Fail startup and acceptance; no alternate-address fallback.
+  rewrite: false
+  changeOrigin: false
+  ws: false
+  stripHeaders: [cookie, authorization, proxy-authorization, 'x-hospital-*']
+  directGatewayCredentialHeaders: rejected
+  gatewayCorsPlugin: false
+  accessControlAllowOrigin: absent
+  arbitraryTarget: false
+  proxyFailure: 502-LOCAL_GATEWAY_UNAVAILABLE-fixed-public-safe-envelope
+  healthProxied: false
+  vitePreview: static-only-not-MVP04-runtime
+  hmr: Vite infrastructure only; no product WebSocket capability.
+routePrefix: /api/mvp
+readEndpoints:
+  - method: GET
+    path: /healthz
+    query: none
+    purpose: Local process health only; no environment details or dependency readiness claim.
+    response: {status: ok, synthetic: true, boundary: local-prototype}
+  - method: GET
+    path: /api/mvp/bootstrap
+    query:
+      required: [persona]
+      persona: [reporter, engineer]
+      additionalProperties: false
+      duplicatePersona: rejected
+    responseFields: [synthetic, boundary, notice, persona, capabilities]
+    capabilityId: tickets
+    capabilityLabel: Synthetic Tickets
+    capabilityActions: Exact actions for the selected synthetic persona.
+    notice: Synthetic persona presentation only; no authentication, authorization or Session.
+commandEndpoints:
+  - method: POST
+    path: /api/mvp/commands
+    query: none
+    contentType: application/json-with-optional-utf8-charset-only
+    requiredFields: [ticketId, action, commandId, idempotencyKey, expectedVersion, observedVersion, personaId]
+    optionalFields: [correlationId]
+    additionalProperties: false
+    ticketId: demo-ticket-workstation-output-001
+    actions: [submit, triage, assign, accept, start_progress, resolve, confirm_close, reopen]
+    personaIds: [synthetic-persona-reporter, synthetic-persona-engineer]
+    versions: {type: integer, minimum: 0, maximum: 1000000, authority: browser-supplied}
+    commandId: {pattern: '^demo-ticket-command-[a-z0-9_-]+$', maxLength: 128}
+    idempotencyKey: {pattern: '^demo-ticket-idempotency-[a-z0-9_-]+$', maxLength: 128}
+    correlationId: {pattern: '^synthetic-correlation-[a-z0-9-]+$', maxLength: 64}
+    receiptFields: [commandId, idempotencyKey, state, expectedVersion, observedVersion, reason, synthetic, boundary]
+    optionalReceiptFields: [correlationId]
+    receiptStates: [accepted, rejected, conflict]
+    receiptReasons: [SYNTHETIC_ENVELOPE_ACCEPTED, PERSONA_ACTION_MISMATCH, VERSION_CONFLICT]
+    receiptMarkers: {synthetic: true, boundary: local-prototype}
+    decisionOrder:
+      - Reject structurally invalid HTTP or envelope before semantic evaluation.
+      - Unknown persona returns 400 UNKNOWN_SYNTHETIC_PERSONA.
+      - Unknown action returns 400 UNKNOWN_ACTION.
+      - Known disallowed persona/action returns 200 rejected PERSONA_ACTION_MISMATCH.
+      - Allowed action with unequal submitted versions returns 409 conflict VERSION_CONFLICT.
+      - Otherwise return 200 accepted SYNTHETIC_ENVELOPE_ACCEPTED.
+    determinism: Same valid envelope gives the same JSON values, including across restarts.
+    idempotencyAuthority: none
+    alteredEnvelopeWithReusedKey: Evaluated anew; no server replay ledger.
+    completionMeaning: No domain completion, persistence or authoritative result.
+syntheticPersonas:
+  - persona: reporter
+    personaId: synthetic-persona-reporter
+    displayName: Synthetic Reporter
+    roles: [reporter]
+    scopes: ['tickets:read', 'tickets:submit', 'tickets:close', 'tickets:reopen']
+    actions: [submit, confirm_close, reopen]
+    synthetic: true
+  - persona: engineer
+    personaId: synthetic-persona-engineer
+    displayName: Demo IT Engineer
+    roles: [engineer]
+    scopes: ['tickets:read', 'tickets:triage', 'tickets:assign', 'tickets:accept', 'tickets:progress', 'tickets:resolve']
+    actions: [triage, assign, accept, start_progress, resolve]
+    synthetic: true
+syntheticRoles: [reporter, engineer]
+syntheticScopes: ['tickets:read', 'tickets:submit', 'tickets:triage', 'tickets:assign', 'tickets:accept', 'tickets:progress', 'tickets:resolve', 'tickets:close', 'tickets:reopen']
+personaBoundary:
+  meaning: Presentation and deterministic prototype constraints only.
+  authenticatedPrincipal: false
+  realRoleAssignment: false
+  serverAuthz: false
+  securityScope: false
+  session: false
+  hospitalIdentity: false
+  visibleUiMarker: PUBLIC-SYNTHETIC / non-production / Asia/Shanghai
+  pendingSwitch: Abort and invalidate; bootstrap the new persona without resetting the local Ticket.
+  generation: Monotonic in-memory counter; A-to-B-to-A cannot revive late work.
+authorityMatrix:
+  ticketAggregate: {mvp04: browser-nonauthoritative-projection-only, mvp05: services/tickets-in-memory-prototype}
+  ticketTransitions: {mvp04: existing-browser-demonstration-table, mvp05: services/tickets}
+  commandReceipt: {mvp04: stateless-gateway-envelope-evaluation, mvp05: Ticket-service-decision-through-Gateway}
+  personaPresentation: {mvp04: gateway-fixed-synthetic-descriptor, mvp05: synthetic-until-separate-hardening}
+  roleScopePresentation: {mvp04: fixed-prototype-strings, mvp05: no-canonical-Authz-claim}
+  httpTransport: {mvp04: app-local-client-vite-gateway, mvp05: separately-planned-gateway-ticket-boundary}
+  persistence: {mvp04: none, mvp05: in-memory-restart-loss-only}
+  idempotency: {mvp04: local-browser-suppression-only, mvp05: services/tickets-in-memory-ledger}
+  expectedVersion: {mvp04: compare-two-browser-claims, mvp05: services/tickets-aggregate-check}
+  domainEvent: {mvp04: no-production-event, mvp05: services/tickets-prototype-output}
+  outbox: {mvp04: none, mvp05: none-canonical-work-deferred}
+  canonicalAuthenticationAndSession: unchanged-and-unimplemented
+  finalProductionState: Requires a domain event; receipt.accepted is not domain completed.
+errorModel:
+  fields: [code, message, synthetic, boundary]
+  optionalFields: [correlationId]
+  correlation: Echo only a supplied value passing the frozen bounds; never generate one.
+  messages: Fixed public-safe strings; no raw input, framework details, paths or environment.
+  codes:
+    INVALID_REQUEST: 400
+    UNKNOWN_SYNTHETIC_PERSONA: 400
+    UNKNOWN_ACTION: 400
+    NOT_FOUND: 404
+    METHOD_NOT_ALLOWED: 405
+    REQUEST_TOO_LARGE: 413
+    UNSUPPORTED_MEDIA_TYPE: 415
+    INTERNAL_ERROR: 500
+    LOCAL_GATEWAY_UNAVAILABLE: 502
+  conflictReceipt: {reason: VERSION_CONFLICT, status: 409}
+  clientErrors: [TIMEOUT, CANCELLED, UNAVAILABLE, INVALID_RESPONSE]
+  clientLocalApplicationOutcome: Distinct from the immutable wire receipt.
+directDependencies:
+  - package: fastify
+    kind: runtime
+    workspace: services/gateway
+    layer: platform-service
+    version: exact-reviewed-release-resolved-during-implementation
+    currentPolicy: allowed
+    policyModificationRequired: false
+    rationale: Approved framework routing, native JSON Schema and injection testing.
+  - package: '@types/node'
+    kind: dev
+    workspace: services/gateway
+    layer: platform-service
+    version: exact-reviewed-24.x-release-resolved-during-implementation
+    currentPolicy: rejected-including-devDependencies
+    policyModificationRequired: true
+    rationale: Fastify and Node TypeScript declarations; native Node type stripping does not supply them.
+existingToolReuse:
+  node: 24.18.0
+  pnpm: 11.17.0
+  typescript: 7.0.2
+  compilerLocation: package.json
+  compilerAccess: pnpm-workspace-scripts-root-binary-PATH
+  additionalTypeScriptRunner: false
+  frontendNewDependencies: []
+  forbiddenSyntax: [enums, parameter-properties, runtime-namespaces, import-aliases, decorators, JSX, TSX, tsconfig-path-aliases]
+  flags: [erasableSyntaxOnly, verbatimModuleSyntax, allowImportingTsExtensions, noEmit]
+  rootTsconfigChange: false
+expectedWorkspaceChanges:
+  create: [services/gateway/package.json]
+  registrations: [apps/workspace-web, services/gateway]
+  appManifestChange: false
+  canonicalContractPackages: []
+expectedRootChanges:
+  paths: [package.json, pnpm-workspace.yaml, pnpm-lock.yaml]
+  rootDevDependenciesChange: false
+  qualityRoutes: [build, lint, typecheck, test, check, 'format:check']
+  qualityStrategy: Preserve root prefixes and explicit workspace-web filters; append explicit Gateway filters; check includes both transitively.
+  workspaceCheckerChange: false
+  workflowChange: false
+  devWorkspace: pnpm --filter @hospital/workspace-web run dev
+  devGateway: pnpm --filter @hospital/gateway run dev
+  devMvp: node scripts/governance/check-workspace-contract.mjs --validate && pnpm -r --parallel --filter @hospital/workspace-web --filter @hospital/gateway run dev
+  supervisorDependency: false
+  processCleanupGate: Verify Windows Ctrl+C and failed-start cleanup; no claim before actual execution.
+expectedPolicyChanges:
+  - path: docs/governance/DEPENDENCY-POLICY.yaml
+    change: Add only @types/node to allowedExternalDependenciesByLayer.platform-service.
+    ownershipPrerequisite: MVP04-GOV-01
+    ownershipPrerequisiteStatus: RESOLVED
+  - path: scripts/governance/check-dependency-dag.test.mjs
+    change: Exact two-workspace baseline and Gateway dependency allow/deny coverage; retain all existing negative assertions.
+expectedOwnershipChanges:
+  preflightWrites: []
+  apiClientChangeRequired: false
+  implementationPrerequisite:
+    id: MVP04-GOV-01
+    status: RESOLVED
+    path: docs/governance/DEPENDENCY-POLICY.yaml
+    owner: toolchain-owner
+    reviewers: [architecture-reviewer, supply-chain-reviewer, security-reviewer]
+    risk: critical
+    governanceFiles: [.github/PATH-OWNERSHIP.yaml, docs/governance/PATH-OWNERSHIP.yaml]
+    mirrorStatus: byte-identical
+    explicitRuleCountPerMirror: 1
+    governancePullRequest: 13
+    governanceImplementationCommit: 970369d613cbb7da0eb2a532479690007b963612
+    governanceMergeCommit: 62e9724da85651a3f594cb698f5ddb820b0288ec
+    governanceMainCommit: 62e9724da85651a3f594cb698f5ddb820b0288ec
+    governanceMainTree: 2e25be26d2fe125d30b09a806c81baf4bac79cb6
+    governanceMainCi: 33931625052
+    governanceMainCiResult: success
+    dependencyPolicyModifiedByGovernancePr: false
+    dependencyApproval: false
+    implementationApproval: false
+sourceBoundaryRules:
+  scan: apps/workspace-web/src/**/*.{ts,tsx}
+  exclude: Test files and explicit test setup only.
+  allowedFetchTargets:
+    - /api/mvp/bootstrap?persona=reporter
+    - /api/mvp/bootstrap?persona=engineer
+    - /api/mvp/commands
+  fetchForm: Direct global fetch with one of the three literal targets in the single transport file.
+  forbidden: [absolute-URL, protocol-relative-URL, arbitrary-endpoint, dynamic-host, traversal, fetch-alias, indirect-fetch, XMLHttpRequest, WebSocket, EventSource, browser-persistence]
+  existingOtherProhibitions: preserved
+  positiveTests: Relative literal fetch in platform/api transport passes.
+  negativeTests: Ticket, features or App fetch; absolute URL; arbitrary endpoint; indirect fetch; all other transports and persistence fail.
+  limits: A source regression guard, not a security sandbox.
+implementationPackets:
+  - id: MVP04-I01
+    title: Gateway workspace, toolchain and dependency governance
+    purpose: Local Gateway workspace bootstrap and exact root/toolchain registration.
+    readiness: READY_AFTER_PREFLIGHT_MERGE
+    dependsOn: [resumed-preflight-merged-to-main-with-successful-main-CI, separate-MVP04-implementation-authorization]
+    ownedPaths:
+      - services/gateway/package.json
+      - services/gateway/tsconfig.json
+      - services/gateway/README.md
+      - services/gateway/src/app.ts
+      - services/gateway/src/server.ts
+      - services/gateway/src/mvp-types.ts
+      - services/gateway/src/mvp-schemas.ts
+      - services/gateway/test/bootstrap.test.ts
+      - services/gateway/test/source-boundary.test.ts
+      - services/gateway/test/format.test.ts
+      - package.json
+      - pnpm-workspace.yaml
+      - pnpm-lock.yaml
+      - docs/governance/DEPENDENCY-POLICY.yaml
+      - scripts/governance/check-dependency-dag.test.mjs
+    prohibitedPaths: All paths outside ownedPaths; no PATH-OWNERSHIP change.
+    acceptance: Exact two workspaces, root quality coverage, strict native TypeScript, injection health and safe shutdown; no Ticket state or egress.
+    rollback: Withdraw service and root/lock/policy/test registration together before dependent integration.
+    reviewers: [identity-access-owner, toolchain-owner, architecture-reviewer, security-reviewer, supply-chain-reviewer, terra_reviewer, terra_security]
+  - id: MVP04-I02
+    title: Browser transport, source-contract boundary and fixed Vite proxy
+    purpose: Browser platform/api client, fixed proxy and source boundary.
+    readiness: WAITING_FOR_MVP04_I01
+    dependsOn: [MVP04-I01]
+    ownedPaths:
+      - apps/workspace-web/src/platform/api/mvp-api-types.ts
+      - apps/workspace-web/src/platform/api/mvp-api-errors.ts
+      - apps/workspace-web/src/platform/api/mvp-api-client.ts
+      - apps/workspace-web/src/platform/api/mvp-api-client.test.ts
+      - apps/workspace-web/src/source-contract.test.ts
+      - apps/workspace-web/vite.config.ts
+    prohibitedPaths: All paths outside ownedPaths; no app manifest or new SDK workspace.
+    acceptance: Strict fixed relative client, positive/negative source cases, timeout/abort and sanitized proxy errors.
+    rollback: Restore prior Vite/source-contract and remove app-local client before injection.
+    reviewers: [workspace-frontend-owner, frontend-reviewer, terra_reviewer, terra_security]
+  - id: MVP04-I03
+    title: Synthetic persona/bootstrap boundary
+    purpose: Synthetic persona/bootstrap read boundary.
+    readiness: WAITING_FOR_MVP04_I02
+    dependsOn: [MVP04-I02]
+    ownedPaths:
+      - services/gateway/src/mvp-personas.ts
+      - services/gateway/test/personas.test.ts
+      - services/gateway/src/app.ts
+      - services/gateway/src/mvp-schemas.ts
+    prohibitedPaths: All paths outside ownedPaths; no identity or Session module.
+    acceptance: Exact two-persona matrix, fixed scopes/capability and truthful notice; unknown/missing/duplicate persona fails.
+    rollback: Remove read implementation with dependent client wiring.
+    reviewers: [identity-access-owner, architecture-reviewer, security-reviewer, terra_reviewer, terra_security]
+  - id: MVP04-I04
+    title: Stateless synthetic command receipt HTTP boundary
+    purpose: Stateless synthetic command receipt HTTP boundary.
+    readiness: WAITING_FOR_MVP04_I03
+    dependsOn: [MVP04-I03]
+    ownedPaths:
+      - services/gateway/src/mvp-receipts.ts
+      - services/gateway/test/commands.test.ts
+      - services/gateway/src/app.ts
+      - services/gateway/src/mvp-schemas.ts
+    prohibitedPaths: All paths outside ownedPaths; no Ticket store, repository, Outbox or idempotency authority.
+    acceptance: Exact persona/action/version precedence, repeat equality, strict malformed/oversize/method/privacy negatives.
+    rollback: Remove command handler with dependent injection; no offline success fallback.
+    reviewers: [identity-access-owner, architecture-reviewer, security-reviewer, terra_reviewer, terra_security]
+  - id: MVP04-I05
+    title: Ticket typed-client injection and local projection interpretation
+    purpose: Ticket capability injection, bootstrap display and local projection interpretation.
+    readiness: WAITING_FOR_MVP04_I04
+    dependsOn: [MVP04-I04]
+    ownedPaths:
+      - apps/workspace-web/src/capabilities/tickets/ticket-model.ts
+      - apps/workspace-web/src/capabilities/tickets/ticket-runtime.ts
+      - apps/workspace-web/src/capabilities/tickets/ticket-runtime.test.ts
+      - apps/workspace-web/src/capabilities/tickets/ticket-projection.ts
+      - apps/workspace-web/src/capabilities/tickets/ticket-fixtures.ts
+      - apps/workspace-web/src/capabilities/tickets/SyntheticTicketExperience.tsx
+      - apps/workspace-web/src/capabilities/tickets/TicketPersonaSwitcher.tsx
+      - apps/workspace-web/src/capabilities/tickets/TicketLifecycleCard.tsx
+      - apps/workspace-web/src/capabilities/tickets/ticket-experience.test.tsx
+      - apps/workspace-web/src/capabilities/tickets/ticket.css
+      - apps/workspace-web/src/App.tsx
+      - apps/workspace-web/src/App.test.tsx
+    prohibitedPaths: All paths outside ownedPaths; no shared feature, transition-table or canonical contract change.
+    acceptance: Pending until valid receipt, exact local context checks, independent wire/application outcomes, lifecycle/focus/race tests and visible synthetic limits.
+    rollback: Revert complete browser integration to accepted MVP-03 source; no runtime fallback.
+    reviewers: [workspace-frontend-owner, frontend-reviewer, terra_reviewer, terra_security]
+  - id: MVP04-I06
+    title: Integrated validation, browser verification, process cleanup and final review
+    purpose: Integrated browser/server/root validation and final frozen-tree review.
+    readiness: WAITING_FOR_MVP04_I05
+    dependsOn: [MVP04-I05]
+    ownedPaths: []
+    readPaths: Union of preceding packets and current repository governance.
+    prohibitedPaths: All writes; return fixes to the owning packet.
+    acceptance: Required checks and HTTP/browser/Windows-cleanup proof; both Terra approvals on one frozen tree; no canonical completion.
+    rollback: Withhold acceptance; return defects to owner and refreeze/rerun both reviewers after any change.
+    reviewers: [parent_codex, terra_reviewer, terra_security]
+implementationPacketExecution: prohibited-in-preflight
+implementationOrdering: Sequential; at most one writer for all shared/root files.
+reviewRequirements:
+  treeBinding: Both receipts reference the same final staged git write-tree.
+  receiptStorage: External parent-session receipt only; never inside the reviewed tree.
+  required:
+    - {agent: terra_reviewer, model: gpt-5.6-terra, reasoningEffort: high, mode: read-only, outcome: APPROVED, maximumP0: 0, maximumP1: 0}
+    - {agent: terra_security, model: gpt-5.6-terra, reasoningEffort: max, mode: read-only, outcome: APPROVED, maximumP0: 0, maximumP1: 0}
+  ownerReviewPreserved: true
+  approvalMeaning: Correct resumed planning decision only; governance ownership resolution is not dependency or implementation approval.
+  solInvoked: false
+  canonicalChangeResponse: Stop with SOL-ROUTE-REQUIRED; do not change accepted architecture or security.
+  postReviewMutation: Restage, refreeze and rerun both reviewers.
+stopConditions:
+  - Starting branch, commit, tree, remote main or clean-state binding differs.
+  - MVP04-GOV-01 resolution or governance-main binding differs from the recorded evidence.
+  - Unapproved path, dependency, ownership or architecture change is needed.
+  - Ticket aggregate, lifecycle or persistence authority would enter Gateway.
+  - Real identity, Session, Authz, hospital/private endpoint or secret becomes necessary.
+  - A review is missing, rejected, stale or bound to a different tree.
+  - The design needs a canonical security change; report SOL-ROUTE-REQUIRED.
+nonGoals:
+  - No runtime implementation, workspace creation, dependency installation or server startup in preflight.
+  - No product, manifest, lock, Vite, dependency-policy or PATH-OWNERSHIP modification in preflight.
+  - No packages/api-client or canonical identity/command/Ticket contract package.
+  - No real authentication, authorization, Session, Redis, database, hospital/private-network integration or Tauri.
+  - No domain authority in Gateway, production event, Outbox, real attachment, Agent/model execution or synchronized-browser guarantee.
+  - No HW02-01, HW02-03 or HW05-05 completion; no MVP-05 start.
+  - No committed Evidence, commit, push, PR, pilot or production claim.
