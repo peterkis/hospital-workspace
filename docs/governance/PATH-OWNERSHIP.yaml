@@ -130,6 +130,14 @@ rules:
   - security-reviewer
   risk: critical
 - paths:
+  - docs/governance/DEPENDENCY-POLICY.yaml
+  ownerRole: toolchain-owner
+  reviewRoles:
+  - architecture-reviewer
+  - supply-chain-reviewer
+  - security-reviewer
+  risk: critical
+- paths:
   - scripts/governance/**
   ownerRole: toolchain-owner
   reviewRoles:
