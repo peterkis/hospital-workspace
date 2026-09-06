@@ -308,7 +308,15 @@ Messages for all server/proxy codes are fixed public-safe strings; no raw
 request, framework message, stack, local path, environment or host topology is
 returned. Optional validated correlationId uses the bounds above. Client
 timeouts are 5000 ms using AbortController and cleared timers; requests use
-`credentials: omit`, `redirect: error`, `cache: no-store`, `mode: same-origin`.
+`credentials: omit`, `redirect: manual`, `cache: no-store`, `mode: same-origin`.
+I02 implementation identified a prototype-boundary erratum: `redirect: error`
+merges redirects with other network errors into an indistinguishable rejection.
+Using `manual` makes the frozen failure classification implementable through
+the standard Fetch API: browsers return an `opaqueredirect` filtered response.
+The client quarantines `opaqueredirect`, exposed HTTP 300–399, and
+`redirected: true` as `INVALID_RESPONSE` before inspecting headers or body.
+It never follows a redirect, reads Location, rewrites an endpoint, or sends a
+second request. Ordinary fetch rejection remains `UNAVAILABLE`.
 Only Accept and command Content-Type headers are authored. Responses must be
 JSON, at most 8192 bytes, and match the strict discriminated shape and expected
 HTTP status. Bound the response reader; Content-Length alone is insufficient.

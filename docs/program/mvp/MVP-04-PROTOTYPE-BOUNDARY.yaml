@@ -50,7 +50,9 @@ browserApiBoundary:
   callerHeadersArgument: false
   requestInitArgument: false
   credentials: omit
-  redirect: error
+  redirect: manual
+  redirectHandling: opaqueredirect-or-exposed-3xx-or-redirected-response-is-invalid-response
+  # I02 prototype-boundary erratum: distinguish redirects from network failures; never follow, read Location or rewrite endpoints.
   cache: no-store
   mode: same-origin
   timeoutMs: 5000
