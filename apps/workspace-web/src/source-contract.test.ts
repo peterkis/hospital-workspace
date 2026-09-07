@@ -126,10 +126,16 @@ function inspectHtmlSource(path: string, source: string): string[] {
 function inspectNetworkSource(path: string, source: string) {
   const inspectedSource = normalizeEscapedIdentifiers(source);
   const violations: string[] = inspectStylesheetSource(inspectedSource);
+  const importTrivia = String.raw`(?:\s|/\*[\s\S]*?\*/|//[^\r\n]*(?:\r?\n|$))*`;
+  const opaqueImport = new RegExp("\\bimport" + importTrivia + "(?:\\*|[\\w$]+(?=" + importTrivia + "(?:,|from\\b)))");
+  if (opaqueImport.test(inspectedSource)) violations.push("uninspected namespace or default import");
   for (const match of inspectedSource.matchAll(/\b(?:from|import)(?:\s|\/\*[\s\S]*?\*\/)*["']([^"']+)["']/g)) {
     const specifier = match[1].split(/[?#]/, 1)[0];
     if (specifier.startsWith("/")) violations.push("unscanned absolute import");
-    if (!specifier.startsWith(".")) continue;
+    if (!specifier.startsWith(".")) {
+      if (specifier !== "react" && specifier !== "react-dom/client") violations.push("unregistered external browser import");
+      continue;
+    }
     const parts: string[] = [];
     for (const part of [...path.split("/").slice(0, -1), ...specifier.split("/")]) {
       if (part === ".") continue;
@@ -378,6 +384,18 @@ describe("browser-source boundary", () => {
       `${name}("/api/mvp/other", { as: "image" });`,
       `import { ${name} as request } from "react-dom"; request("/api/mvp/other", { as: "image" });`,
     ]) expect(inspectNetworkSource("./Resource.tsx", source).violations).toContain("disallowed browser egress: resource hint");
+  });
+
+  it.each([
+    'import * as ReactDOM from "react-dom"; const hint = ReactDOM["pre" /* split */ + "load"]; hint(target);',
+    'import React from "react"; React["create" /* split */ + "Element"](tag, props);',
+    'import /* comment */ * as React from "react";',
+    'import React /* comment */ from "react";',
+    'import * as helper from "./helper";',
+    'import helper from "./helper";',
+    'import { request } from "unregistered-module";',
+  ])("requires inspected named production imports: %s", (source) => {
+    expect(inspectNetworkSource("./Resource.tsx", source).violations.length).toBeGreaterThan(0);
   });
 
   it.each([
