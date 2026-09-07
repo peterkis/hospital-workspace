@@ -165,7 +165,8 @@ function inspectNetworkSource(path: string, source: string) {
     // Styles belong in scanned CSS files; dynamic inline CSS is not statically inspectable.
     [/\b(?:style|cssText)\b/g, "inline style"],
     // Product elements must use the inspected JSX path, including when props or tag names are dynamic.
-    [/\b(?:createElement|cloneElement|jsx|jsxs|jsxDEV)\b/g, "uninspected element factory"],
+    [/\b(?:createElement|cloneElement|createPortal|jsx|jsxs|jsxDEV)\b/g, "uninspected element factory"],
+    [/\b(?:httpEquiv|http-equiv)\b/gi, "metadata navigation"],
     [/\b(?:src|srcSet|href|xlinkHref|poster|srcDoc|formAction)\b["']?\s*(?:[:=]|\])/gi, "resource prop"],
     [/\b(?:globalThis|window|navigator|document)\s*\[/g, "computed browser-global access"],
     [/\bReflect\s*\./g, "reflective browser access"],
@@ -333,6 +334,16 @@ describe("browser-source boundary", () => {
 
   it("keeps presentation in scanned stylesheets", () => {
     expect(inspectNetworkSource("./Component.tsx", 'import "./styles.css"; <div className="card" />;').violations).toEqual([]);
+  });
+
+  it.each([
+    'createPortal(<meta httpEquiv="refresh" content="0;url=/api/mvp/other" />, document.querySelectorAll("head")[0]);',
+    '<meta httpEquiv="refresh" content="0;url=/api/mvp/other" />;',
+    'const Tag = "meta"; <Tag httpEquiv="refresh" content={target} />;',
+    'const props = { httpEquiv: "refresh", content: target };',
+    'import { createPortal as render } from "react-dom"; render(element, root);',
+  ])("rejects JSX metadata navigation: %s", (source) => {
+    expect(inspectNetworkSource("./Resource.tsx", source).violations.length).toBeGreaterThan(0);
   });
 
   it("scans the actual HTML entry with only its fixed module script", () => {
