@@ -109,6 +109,16 @@ function inspectHtmlSource(path: string, source: string): string[] {
   const violations = inspectNetworkSource(path, body).violations;
   if (path === "../index.html" && source.split(moduleEntry).length !== 2) violations.push("invalid module entry");
   if (/<\s*script\b|\bhttp-equiv\b|\bon[a-z]+\s*=/i.test(body)) violations.push("unregistered HTML execution or navigation");
+  const allowedElements = new Set(["html", "head", "meta", "title", "body", "div"]);
+  const allowedAttributes = new Set(["lang", "charset", "name", "content", "id"]);
+  for (const match of body.matchAll(/<\s*([a-z][\w:-]*)\b/gi)) {
+    if (!allowedElements.has(match[1].toLowerCase())) violations.push("unregistered HTML element");
+  }
+  for (const tag of jsxOpeningTags(body)) {
+    for (const match of tag.attributes.matchAll(/([a-z][\w:-]*)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/gi)) {
+      if (!allowedAttributes.has(match[1].toLowerCase())) violations.push("unregistered HTML attribute");
+    }
+  }
   return violations;
 }
 
@@ -344,6 +354,11 @@ describe("browser-source boundary", () => {
   it("rejects a changed or relocated module entry", () => {
     expect(inspectHtmlSource("../index.html", moduleEntry.replace("main.tsx", "other.tsx")).length).toBeGreaterThan(0);
     expect(inspectHtmlSource("./other.html", moduleEntry).length).toBeGreaterThan(0);
+  });
+
+  it.each(["background", "manifest", "style", "onload"])("rejects a resource-bearing HTML attribute: %s", (attribute) => {
+    const source = productSources["../index.html"].replace("<body>", `<body ${attribute}="/api/mvp/other">`);
+    expect(inspectHtmlSource("../index.html", source)).toContain("unregistered HTML attribute");
   });
 
   it.each([
