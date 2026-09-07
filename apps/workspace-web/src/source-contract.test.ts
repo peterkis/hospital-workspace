@@ -130,6 +130,8 @@ function inspectNetworkSource(path: string, source: string) {
   const opaqueImport = new RegExp("\\bimport" + importTrivia + "(?:\\*|[\\w$]+(?=" + importTrivia + "(?:,|from\\b)))");
   const namespaceExport = new RegExp("\\bexport" + importTrivia + "\\*");
   const defaultAlias = new RegExp("\\bdefault[\"']?" + importTrivia + "as\\b");
+  const dynamicImport = new RegExp("\\bimport" + importTrivia + "\\(");
+  if (dynamicImport.test(inspectedSource)) violations.push("dynamic browser import");
   if (opaqueImport.test(inspectedSource) || namespaceExport.test(inspectedSource) || defaultAlias.test(inspectedSource)) {
     violations.push("uninspected namespace or default import");
   }
@@ -385,6 +387,16 @@ describe("browser-source boundary", () => {
     'import "/public-script.js";',
   ])("rejects unscanned production imports: %s", (source) => {
     expect(inspectNetworkSource("./App.tsx", source).violations.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    'import("./side-effect.test.js");',
+    'import/* split */("./side-effect.test.js");',
+    'import // split\n("./side-effect.test.js");',
+    'import /* block */ // line\n ("./side-effect.test.js");',
+    String.raw`im\u0070ort/* split */("./side-effect.test.js");`,
+  ])("rejects dynamic imports with trivia: %s", (source) => {
+    expect(inspectNetworkSource("./Resource.tsx", source).violations).toContain("dynamic browser import");
   });
 
   it.each(["preload", "preloadModule", "preinit", "preinitModule", "preconnect", "prefetchDNS"])("rejects React DOM resource API %s including aliases", (name) => {
