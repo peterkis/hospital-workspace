@@ -85,6 +85,10 @@ function inspectNetworkSource(path: string, source: string) {
   const browserEgressPatterns: readonly [RegExp, string][] = [
     // Product elements must use the inspected JSX path, including when props or tag names are dynamic.
     [/\b(?:createElement|cloneElement|jsx|jsxs|jsxDEV)\b/g, "uninspected element factory"],
+    [/\b(?:src|srcSet|href|xlinkHref|poster|srcDoc|formAction)\b["']?\s*(?:[:=]|\])/gi, "resource prop"],
+    [/<\s*[\w$.:-]+\s+(?:=>|[^>])*\b(?:action|data)\s*=/g, "resource JSX prop"],
+    // Unknown component props could become intrinsic resource props; use explicit component props instead.
+    [/<\s*(?:[A-Z][\w$]*|[\w$]+\.[\w$.]+)\s+(?:=>|[^>])*\{\s*\.\.\./g, "uninspected component spread"],
     [/\b(?:globalThis|window|navigator|document)\s*\[/g, "computed browser-global access"],
     [/\bReflect\s*\./g, "reflective browser access"],
     [/\.\s*constructor\s*\(/g, "dynamic constructor access"],
@@ -237,7 +241,7 @@ describe("browser-source boundary", () => {
   it.each([
     "const errors = new WeakSet<object>();",
     "<div {...props} />;",
-    "<TicketCard {...props} />;",
+    "<TicketCard title={title} />;",
   ])("retains non-resource syntax: %s", (source) => {
     expect(inspectNetworkSource("./Component.tsx", source).violations).toEqual([]);
   });
@@ -254,6 +258,25 @@ describe("browser-source boundary", () => {
     'import { jsxDEV as render } from "react/jsx-dev-runtime"; render("img", props);',
   ])("rejects uninspected element factories: %s", (source) => {
     expect(inspectNetworkSource("./Resource.tsx", source).violations).toContain("disallowed browser egress: uninspected element factory");
+  });
+
+  it.each([
+    'const Tag = "img"; <Tag src="/api/mvp/other" />;',
+    'const Tag = "img"; <Tag onLoad={() => {}} src={target} />;',
+    'const Tag = "img"; const props = { src: "/api/mvp/other" }; <Tag {...props} />;',
+    'const Tag = "img"; <Tag {...props} />;',
+    'const Tag = "img"; <Tag onLoad={() => {}} {...props} />;',
+    'const tags = { Image: "img" }; <tags.Image {...props} />;',
+    'const Tag = "a"; <Tag href="/api/mvp/other" />;',
+    'const Tag = "form"; <Tag action="/api/mvp/other" />;',
+    'const Tag = "form"; <Tag onSubmit={() => {}} action="/api/mvp/other" />;',
+    'const Tag = "object"; <Tag data="/api/mvp/other" />;',
+    '<input type="image" src="/api/mvp/other" />;',
+    '<button formAction="/api/mvp/other" />;',
+    'const props = { "src": target };',
+    'const props = { ["src" + "Set"]: target };',
+  ])("rejects resource props independent of the JSX tag: %s", (source) => {
+    expect(inspectNetworkSource("./Resource.tsx", source).violations.length).toBeGreaterThan(0);
   });
 
   it("keeps browser code free from persistence, unsafe HTML, and native runtime access", () => {
