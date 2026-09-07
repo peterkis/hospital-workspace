@@ -176,10 +176,10 @@ function inspectNetworkSource(path: string, source: string) {
     /\b(?:globalThis|window)\.setTimeout\s*\(\s*\(\)\s*=>/g,
     /\b(?:globalThis|window)\.clearTimeout\s*\(/g,
     /\bwindow\.(?:addEventListener|removeEventListener)\b/g,
-    /\bwindow\.location\.search\b/g,
+    /\bnew URLSearchParams\(window\.location\.search\)\.get\("scenario"\)/g,
     /\bdocument\.(?:getElementById|querySelectorAll)\b/g,
   ].flatMap((pattern) => [...inspectedSource.matchAll(pattern)].map((match) => ({ start: match.index, end: match.index + match[0].length })));
-  for (const match of inspectedSource.matchAll(/\b(globalThis|window|document|navigator|self|frames|top|parent)\b/g)) {
+  for (const match of inspectedSource.matchAll(/\b(globalThis|window|document|navigator|self|frames|top|parent|history|location|navigation)\b/g)) {
     if (!allowedGlobalReferences.some((reference) => match.index >= reference.start && match.index < reference.end)) {
       violations.push(`disallowed browser-global access: ${match[1]}`);
     }
@@ -363,6 +363,25 @@ describe("browser-source boundary", () => {
 
   it("keeps presentation in scanned stylesheets", () => {
     expect(inspectNetworkSource("./Component.tsx", 'import "./styles.css"; <div className="card" />;').violations).toEqual([]);
+  });
+
+  it.each([
+    'history.pushState({}, "", "/api/mvp/other"); location.reload();',
+    'history.replaceState({}, "", "/api/mvp/other"); location.reload();',
+    'const route = history; route.pushState({}, "", target);',
+    'const current = location; current.reload();',
+    'location["re" /* split */ + "load"]();',
+    'navigation.navigate("/api/mvp/other");',
+    'window.history.back();',
+    'history.go(-1);',
+    'window.location.search = "?other";',
+    'window.location.search /* changed */ = "?other";',
+  ])("rejects navigation globals beyond the fixed query read: %s", (source) => {
+    expect(inspectNetworkSource("./Navigation.tsx", source).violations.length).toBeGreaterThan(0);
+  });
+
+  it("retains only the existing read-only query-string access", () => {
+    expect(inspectNetworkSource("./App.tsx", 'new URLSearchParams(window.location.search).get("scenario")').violations).toEqual([]);
   });
 
   it.each(["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"])("scans production script extension %s", (extension) => {
