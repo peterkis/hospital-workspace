@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-const productSources = import.meta.glob<string>(["./**/*.ts", "./**/*.tsx", "./**/*.css", "./**/*.html", "../index.html"], {
+const productSources = import.meta.glob<string>(["./**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}", "./**/*.css", "./**/*.html", "../index.html"], {
   eager: true,
   import: "default",
   query: "?raw",
 });
 
-const formatSources = import.meta.glob<string>(["./**/*.{ts,tsx}", "../*.{html,json,md,ts}"], {
+const formatSources = import.meta.glob<string>(["./**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}", "../*.{html,json,md,ts}"], {
   eager: true,
   import: "default",
   query: "?raw",
@@ -19,7 +19,8 @@ const allowedFetchTargets = [
   "/api/mvp/commands",
 ] as const;
 const explicitTestSetupPath = "./test/setup.ts";
-const actualTestFileSuffix = /\.(?:test|spec)\.(?:ts|tsx)$/;
+const scriptFileSuffix = /\.(?:[cm]?[jt]s|[jt]sx)$/;
+const actualTestFileSuffix = /\.(?:test|spec)\.(?:[cm]?[jt]s|[jt]sx)$/;
 const approvedIconProps = 'const common = { fill: "none", stroke: "currentColor", strokeLinecap: "round" as const, strokeLinejoin: "round" as const, strokeWidth: 1.8 };';
 
 function isProductionSourcePath(path: string): boolean {
@@ -125,6 +126,20 @@ function inspectHtmlSource(path: string, source: string): string[] {
 function inspectNetworkSource(path: string, source: string) {
   const inspectedSource = normalizeEscapedIdentifiers(source);
   const violations: string[] = inspectStylesheetSource(inspectedSource);
+  for (const match of inspectedSource.matchAll(/\b(?:from|import)(?:\s|\/\*[\s\S]*?\*\/)*["']([^"']+)["']/g)) {
+    const specifier = match[1].split(/[?#]/, 1)[0];
+    if (specifier.startsWith("/")) violations.push("unscanned absolute import");
+    if (!specifier.startsWith(".")) continue;
+    const parts: string[] = [];
+    for (const part of [...path.split("/").slice(0, -1), ...specifier.split("/")]) {
+      if (part === ".") continue;
+      if (part === ".." && parts.length > 0 && parts.at(-1) !== "..") parts.pop();
+      else parts.push(part);
+    }
+    const resolved = `./${parts.join("/")}`;
+    if (parts[0] === ".." || !isProductionSourcePath(resolved) || resolved === "./test/setup"
+      || /\.(?:test|spec)(?:\?|$)/.test(resolved)) violations.push("import outside scanned production source");
+  }
   const directCalls: { index: number; target: string }[] = [];
   const directFetch = /(?<![\w$.])\bfetch\s*\(\s*(["'])([^"'\\\r\n]*)\1\s*,/g;
   for (const match of inspectedSource.matchAll(directFetch)) {
@@ -167,6 +182,7 @@ function inspectNetworkSource(path: string, source: string) {
     // Product elements must use the inspected JSX path, including when props or tag names are dynamic.
     [/\b(?:createElement|cloneElement|createPortal|jsx|jsxs|jsxDEV)\b/g, "uninspected element factory"],
     [/\b(?:httpEquiv|http-equiv)\b/gi, "metadata navigation"],
+    [/\b(?:preload|preloadModule|preinit|preinitModule|preconnect|prefetchDNS)\b/g, "resource hint"],
     [/\b(?:src|srcSet|href|xlinkHref|poster|srcDoc|formAction)\b["']?\s*(?:[:=]|\])/gi, "resource prop"],
     [/\b(?:globalThis|window|navigator|document)\s*\[/g, "computed browser-global access"],
     [/\bReflect\s*\./g, "reflective browser access"],
@@ -202,7 +218,7 @@ function inspectNetworkSource(path: string, source: string) {
 
 describe("browser-source boundary", () => {
   const productionSources = Object.entries(productSources).filter(([path]) => isProductionSourcePath(path));
-  const sourceText = productionSources.filter(([path]) => /\.tsx?$/.test(path)).map(([, content]) => content).join("\n");
+  const sourceText = productionSources.filter(([path]) => scriptFileSuffix.test(path)).map(([, content]) => content).join("\n");
 
   it("includes an embedded test token helper in production scans", () => {
     const path = "./capabilities/tickets/ticket.test.helpers.ts";
@@ -334,6 +350,34 @@ describe("browser-source boundary", () => {
 
   it("keeps presentation in scanned stylesheets", () => {
     expect(inspectNetworkSource("./Component.tsx", 'import "./styles.css"; <div className="card" />;').violations).toEqual([]);
+  });
+
+  it.each(["ts", "tsx", "mts", "cts", "js", "jsx", "mjs", "cjs"])("scans production script extension %s", (extension) => {
+    const path = `./features/side-effect.${extension}`;
+    const source = 'fetch("/api/mvp/other", {}); localStorage;';
+    expect(isProductionSourcePath(path) && scriptFileSuffix.test(path)).toBe(true);
+    expect(inspectNetworkSource(path, source).violations.length).toBeGreaterThan(0);
+    const aggregate = [[path, source]].filter(([entry]) => isProductionSourcePath(entry) && scriptFileSuffix.test(entry)).map(([, content]) => content).join("\n");
+    expect(aggregate).toContain("localStorage");
+  });
+
+  it.each([
+    'import "../outside.js";',
+    'import /* side effect */ "../outside.mjs";',
+    'import "./side-effect.test.js";',
+    'import "./side-effect.test.js?raw";',
+    'import "./test/setup";',
+    'import "./side-effect.spec";',
+    'import "/public-script.js";',
+  ])("rejects unscanned production imports: %s", (source) => {
+    expect(inspectNetworkSource("./App.tsx", source).violations.length).toBeGreaterThan(0);
+  });
+
+  it.each(["preload", "preloadModule", "preinit", "preinitModule", "preconnect", "prefetchDNS"])("rejects React DOM resource API %s including aliases", (name) => {
+    for (const source of [
+      `${name}("/api/mvp/other", { as: "image" });`,
+      `import { ${name} as request } from "react-dom"; request("/api/mvp/other", { as: "image" });`,
+    ]) expect(inspectNetworkSource("./Resource.tsx", source).violations).toContain("disallowed browser egress: resource hint");
   });
 
   it.each([
