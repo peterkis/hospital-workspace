@@ -88,7 +88,7 @@ function inspectNetworkSource(path: string, source: string) {
     [/\.\s*constructor\s*\(/g, "dynamic constructor access"],
     [/\.(?:ownerDocument|defaultView|contentWindow|contentDocument)\b/g, "derived browser-global access"],
     [/\bnew\s+Image\s*\(/g, "image request"],
-    [/<\s*(?:a|audio|embed|form|iframe|image|img|link|object|script|source|track|use|video)\s+(?=[A-Za-z_:])/gi, "resource-bearing markup"],
+    [/<\s*(?:a|audio|embed|form|iframe|image|img|link|object|script|source|track|use|video)\s+(?=[A-Za-z_:{])/gi, "resource-bearing markup"],
     [/\bdocument\.createElement\s*\(\s*["'](?:a|audio|embed|form|iframe|image|img|link|object|script|source|track|video)["']\s*\)/gi, "resource-bearing element"],
     [/(?:\.|\]\s*)(?:src|href|action|data|poster|srcdoc)\s*=/g, "resource target assignment"],
     [/\bsetAttribute\s*\(\s*["'](?:src|href|action|data|poster|srcdoc)["']\s*,/g, "resource target attribute"],
@@ -219,6 +219,25 @@ describe("browser-source boundary", () => {
     const result = inspectNetworkSource(transportPath, candidate);
     expect(result.violations.length).toBeGreaterThan(0);
     expect(result.targets).toHaveLength(4);
+  });
+
+  it.each(["a", "audio", "embed", "form", "iframe", "image", "img", "link", "object", "script", "source", "track", "use", "video"])("rejects resource props spread onto %s", (tag) => {
+    for (const source of [
+      `const props = { src: "/api/mvp/other" }; <${tag} {...props} />;`,
+      `<${tag}\n  {...{ src: "/api/mvp/other" }} />;`,
+      `<${tag} {...props} src="/api/mvp/other" />;`,
+      `<${tag} {...props}></${tag}>;`,
+    ]) {
+      expect(inspectNetworkSource("./Resource.tsx", source).violations).toContain("disallowed browser egress: resource-bearing markup");
+    }
+  });
+
+  it.each([
+    "const errors = new WeakSet<object>();",
+    "<div {...props} />;",
+    "<TicketCard {...props} />;",
+  ])("retains non-resource syntax: %s", (source) => {
+    expect(inspectNetworkSource("./Component.tsx", source).violations).toEqual([]);
   });
 
   it("keeps browser code free from persistence, unsafe HTML, and native runtime access", () => {
