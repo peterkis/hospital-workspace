@@ -128,7 +128,11 @@ function inspectNetworkSource(path: string, source: string) {
   const violations: string[] = inspectStylesheetSource(inspectedSource);
   const importTrivia = String.raw`(?:\s|/\*[\s\S]*?\*/|//[^\r\n]*(?:\r?\n|$))*`;
   const opaqueImport = new RegExp("\\bimport" + importTrivia + "(?:\\*|[\\w$]+(?=" + importTrivia + "(?:,|from\\b)))");
-  if (opaqueImport.test(inspectedSource)) violations.push("uninspected namespace or default import");
+  const namespaceExport = new RegExp("\\bexport" + importTrivia + "\\*");
+  const defaultAlias = new RegExp("\\bdefault[\"']?" + importTrivia + "as\\b");
+  if (opaqueImport.test(inspectedSource) || namespaceExport.test(inspectedSource) || defaultAlias.test(inspectedSource)) {
+    violations.push("uninspected namespace or default import");
+  }
   for (const match of inspectedSource.matchAll(/\b(?:from|import)(?:\s|\/\*[\s\S]*?\*\/)*["']([^"']+)["']/g)) {
     const specifier = match[1].split(/[?#]/, 1)[0];
     if (specifier.startsWith("/")) violations.push("unscanned absolute import");
@@ -396,6 +400,17 @@ describe("browser-source boundary", () => {
     'import { request } f' + 'rom "unregistered-module";',
   ])("requires inspected named production imports: %s", (source) => {
     expect(inspectNetworkSource("./Resource.tsx", source).violations.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    'import { default as React } from "react"; const render = React["create" /* split */ + "Element"]; render(tag, props);',
+    'import { "default" as React } from "react";',
+    'import { default /* alias */ as React } from "react";',
+    'export * as R from "react";',
+    'export /* bridge */ * as R from "react";',
+    'export { default as R } from "react";',
+  ])("rejects namespace bridges through named syntax: %s", (source) => {
+    expect(inspectNetworkSource("./bridge.ts", source).violations).toContain("uninspected namespace or default import");
   });
 
   it.each([
