@@ -83,6 +83,8 @@ function inspectNetworkSource(path: string, source: string) {
     }
   }
   const browserEgressPatterns: readonly [RegExp, string][] = [
+    // Product elements must use the inspected JSX path, including when props or tag names are dynamic.
+    [/\b(?:createElement|cloneElement|jsx|jsxs|jsxDEV)\b/g, "uninspected element factory"],
     [/\b(?:globalThis|window|navigator|document)\s*\[/g, "computed browser-global access"],
     [/\bReflect\s*\./g, "reflective browser access"],
     [/\.\s*constructor\s*\(/g, "dynamic constructor access"],
@@ -238,6 +240,20 @@ describe("browser-source boundary", () => {
     "<TicketCard {...props} />;",
   ])("retains non-resource syntax: %s", (source) => {
     expect(inspectNetworkSource("./Component.tsx", source).violations).toEqual([]);
+  });
+
+  it.each([
+    'React.createElement("img", { src: "/api/mvp/other" });',
+    'createElement("img", props);',
+    'import { createElement as render } from "react"; render("img", props);',
+    'const render = React.createElement; render("img", props);',
+    'React["create" + "Element"]("img", props);',
+    'React.cloneElement(element, { src: "/api/mvp/other" });',
+    'import { jsx as render } from "react/jsx-runtime"; render("img", props);',
+    'import { jsxs as render } from "react/jsx-runtime"; render("video", props);',
+    'import { jsxDEV as render } from "react/jsx-dev-runtime"; render("img", props);',
+  ])("rejects uninspected element factories: %s", (source) => {
+    expect(inspectNetworkSource("./Resource.tsx", source).violations).toContain("disallowed browser egress: uninspected element factory");
   });
 
   it("keeps browser code free from persistence, unsafe HTML, and native runtime access", () => {
