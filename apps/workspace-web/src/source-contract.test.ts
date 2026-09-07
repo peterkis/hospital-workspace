@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-const productSources = import.meta.glob<string>(["./**/*.ts", "./**/*.tsx"], {
+const productSources = import.meta.glob<string>(["./**/*.ts", "./**/*.tsx", "./**/*.css"], {
   eager: true,
   import: "default",
   query: "?raw",
@@ -67,6 +67,19 @@ function jsxOpeningTags(source: string): { name: string; attributes: string }[] 
     }
   }
   return tags;
+}
+
+function inspectStylesheetSource(source: string): string[] {
+  const normalized = source
+    .replace(/\\(?:\r\n|[\n\r\f])/g, "")
+    .replace(/\\([0-9a-f]{1,6})(?:\r\n|[\t\n\r\f ])?|\\([^0-9a-f])/gi, (_match, hexadecimal: string | undefined, escaped: string | undefined) => {
+      if (hexadecimal === undefined) return escaped ?? "";
+      const codePoint = Number.parseInt(hexadecimal, 16);
+      return codePoint > 0 && codePoint <= 0x10ffff ? String.fromCodePoint(codePoint) : "\ufffd";
+    })
+    .replace(/\/\*[\s\S]*?\*\//g, "");
+  return /@import\b|\b(?:url|(?:-webkit-)?image-set|src)\s*\(/i.test(normalized)
+    ? ["disallowed stylesheet resource"] : [];
 }
 
 function inspectNetworkSource(path: string, source: string) {
@@ -142,7 +155,7 @@ function inspectNetworkSource(path: string, source: string) {
 
 describe("browser-source boundary", () => {
   const productionSources = Object.entries(productSources).filter(([path]) => isProductionSourcePath(path));
-  const sourceText = productionSources.map(([, content]) => content).join("\n");
+  const sourceText = productionSources.filter(([path]) => !path.endsWith(".css")).map(([, content]) => content).join("\n");
 
   it("includes an embedded test token helper in production scans", () => {
     const path = "./capabilities/tickets/ticket.test.helpers.ts";
@@ -204,7 +217,9 @@ describe("browser-source boundary", () => {
   });
 
   it("confines browser requests to the exact app-local transport targets", () => {
-    for (const [path, content] of productionSources) expect(inspectNetworkSource(path, content).violations, path).toEqual([]);
+    for (const [path, content] of productionSources) {
+      expect(path.endsWith(".css") ? inspectStylesheetSource(content) : inspectNetworkSource(path, content).violations, path).toEqual([]);
+    }
     expect(inspectNetworkSource(transportPath, productSources[transportPath]).targets).toEqual(allowedFetchTargets);
   });
 
@@ -212,6 +227,35 @@ describe("browser-source boundary", () => {
     for (const [path, content] of productionSources.filter(([path]) => path === "./App.tsx" || path.startsWith("./capabilities/tickets/") || path.startsWith("./features/"))) {
       expect(content, path).not.toMatch(/\bfetch\b/);
     }
+  });
+
+  it("includes the imported production stylesheets", () => {
+    expect(productionSources.map(([path]) => path)).toEqual(expect.arrayContaining([
+      "./styles.css",
+      "./capabilities/tickets/ticket.css",
+    ]));
+    for (const [path, content] of productionSources.filter(([path]) => path.endsWith(".css"))) {
+      expect(content.length, path).toBeGreaterThan(0);
+    }
+  });
+
+  it.each([
+    'body { background: url("/api/mvp/other"); }',
+    '@import "/api/mvp/other";',
+    '@import url("/api/mvp/other");',
+    'body { background: image-set("/api/mvp/other" 1x); }',
+    'body { background: -webkit-image-set("/api/mvp/other" 1x); }',
+    'body { background: u\\72l("/api/mvp/other"); }',
+    'body { background: \\75 rl("/api/mvp/other"); }',
+    '@\\69mport "/api/mvp/other";',
+    '@import/**/"/api/mvp/other";',
+    'body { background: src("/api/mvp/other"); }',
+  ])("rejects stylesheet egress: %s", (source) => {
+    expect(inspectStylesheetSource(source)).toEqual(["disallowed stylesheet resource"]);
+  });
+
+  it("retains ordinary CSS with local gradients and variables", () => {
+    expect(inspectStylesheetSource(".card { color: var(--text); background: linear-gradient(red, blue); }")).toEqual([]);
   });
 
   it.each(allowedFetchTargets)("admits the fixed relative literal transport target %s", (target) => {
