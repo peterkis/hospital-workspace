@@ -20,6 +20,7 @@ const allowedFetchTargets = [
 ] as const;
 const explicitTestSetupPath = "./test/setup.ts";
 const actualTestFileSuffix = /\.(?:test|spec)\.(?:ts|tsx)$/;
+const approvedIconProps = 'const common = { fill: "none", stroke: "currentColor", strokeLinecap: "round" as const, strokeLinejoin: "round" as const, strokeWidth: 1.8 };';
 
 function isProductionSourcePath(path: string): boolean {
   const normalizedPath = path.replaceAll("\\", "/");
@@ -145,11 +146,15 @@ function inspectNetworkSource(path: string, source: string) {
   for (const [pattern, label] of browserEgressPatterns) {
     if (pattern.test(inspectedSource)) violations.push(`disallowed browser egress: ${label}`);
   }
+  const fixedIconProps = path === "./App.tsx" && inspectedSource.includes(approvedIconProps)
+    && !/\bcommon\b/.test(inspectedSource.replace(approvedIconProps, "").replaceAll("{...common}", ""));
   for (const tag of jsxOpeningTags(inspectedSource)) {
     if (/\b(?:action|data)\s*=/.test(tag.attributes)) violations.push("disallowed browser egress: resource JSX prop");
-    // Unknown component props could become intrinsic resource props; use explicit component props instead.
-    if ((/^[A-Z]/.test(tag.name) || tag.name.includes(".")) && /\{\s*\.\.\./.test(tag.attributes)) {
-      violations.push("disallowed browser egress: uninspected component spread");
+    // Preserve only the existing literal icon props, with no other reference that could mutate or shadow them.
+    const attributes = fixedIconProps && /^(?:path|rect|circle)$/.test(tag.name)
+      ? tag.attributes.replaceAll("{...common}", "") : tag.attributes;
+    if (/\{\s*\.\.\./.test(attributes)) {
+      violations.push("disallowed browser egress: uninspected JSX spread");
     }
   }
   return { targets: directCalls.map((call) => call.target), violations };
@@ -274,6 +279,7 @@ describe("browser-source boundary", () => {
     'const image = ("u") + ("rl(/api/mvp/other)"); <div style={{ backgroundImage: image }} />;',
     '<div style={unknownStyle} />;',
     'const props = { style: unknownStyle }; <div {...props} />;',
+    'const props = { ["st" /* split */ + "yle"]: { backgroundImage: ("u") + ("rl(/api/mvp/other)") } }; <div {...props} />;',
     String.raw`<style>{'@\\69mport "/api/mvp/other";'}</style>`,
     'open("/api/mvp/other");',
     'const navigate = open; navigate("/api/mvp/other");',
@@ -286,6 +292,19 @@ describe("browser-source boundary", () => {
 
   it("keeps presentation in scanned stylesheets", () => {
     expect(inspectNetworkSource("./Component.tsx", 'import "./styles.css"; <div className="card" />;').violations).toEqual([]);
+  });
+
+  it("allows only the existing immutable icon spread", () => {
+    const source = `${approvedIconProps} <path {...common} d="M0 0" />;`;
+    expect(inspectNetworkSource("./App.tsx", source).violations).toEqual([]);
+    for (const candidate of [
+      source.replace("<path", "<div"),
+      `${source} common.stroke = value;`,
+      `${source} mutate(common);`,
+      `${source} function nested(common: unknown) { return <path {...common} />; }`,
+      source.replace("strokeWidth: 1.8", "strokeWidth: dynamicValue"),
+    ]) expect(inspectNetworkSource("./App.tsx", candidate).violations.length).toBeGreaterThan(0);
+    expect(inspectNetworkSource("./Other.tsx", source).violations.length).toBeGreaterThan(0);
   });
 
   it.each(allowedFetchTargets)("admits the fixed relative literal transport target %s", (target) => {
@@ -344,7 +363,7 @@ describe("browser-source boundary", () => {
 
   it.each([
     "const errors = new WeakSet<object>();",
-    "<div {...props} />;",
+    "<div className={className} />;",
     "<TicketCard title={title} />;",
   ])("retains non-resource syntax: %s", (source) => {
     expect(inspectNetworkSource("./Component.tsx", source).violations).toEqual([]);
