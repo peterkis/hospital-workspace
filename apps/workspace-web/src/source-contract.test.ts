@@ -84,7 +84,9 @@ function inspectStylesheetSource(source: string): string[] {
 
 function inspectNetworkSource(path: string, source: string) {
   const inspectedSource = normalizeEscapedIdentifiers(source);
-  const inlineStyleSource = inspectedSource.replace(/["'`]\s*\+\s*["'`]/g, "").replaceAll("\\\\", "\\");
+  const trivia = String.raw`(?:\s|/\*[\s\S]*?\*/|//[^\r\n]*(?:\r?\n|$))*`;
+  const literalJoin = new RegExp("[\"'`]" + trivia + "\\+" + trivia + "[\"'`]", "g");
+  const inlineStyleSource = inspectedSource.replace(literalJoin, "").replaceAll("\\\\", "\\");
   const violations: string[] = inspectStylesheetSource(inlineStyleSource);
   const directCalls: { index: number; target: string }[] = [];
   const directFetch = /(?<![\w$.])\bfetch\s*\(\s*(["'])([^"'\\\r\n]*)\1\s*,/g;
@@ -266,6 +268,10 @@ describe("browser-source boundary", () => {
     `<div style={{ backgroundImage: 'src("/api/mvp/other")' }} />`,
     `<style>{'@im' + 'port "/api/mvp/other";'}</style>`,
     `<div style={{ backgroundImage: 'image-' + 'set("/api/mvp/other" 1x)' }} />`,
+    'const image = "u" /* split */ + "rl(/api/mvp/other)"; <div style={{ backgroundImage: image }} />;',
+    'const image = "u" + /* split */ "rl(/api/mvp/other)"; <div style={{ backgroundImage: image }} />;',
+    'const image = "u" // split\n + "rl(/api/mvp/other)"; <div style={{ backgroundImage: image }} />;',
+    'const image = "image-" + // split\n "set(/api/mvp/other 1x)"; <div style={{ backgroundImage: image }} />;',
     String.raw`<style>{'@\\69mport "/api/mvp/other";'}</style>`,
     'open("/api/mvp/other");',
     'const navigate = open; navigate("/api/mvp/other");',
