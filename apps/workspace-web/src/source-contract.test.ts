@@ -190,6 +190,8 @@ function inspectNetworkSource(path: string, source: string) {
     }
   }
   const browserEgressPatterns: readonly [RegExp, string][] = [
+    // Product DOM creation and mutation stays with React; raw markup/attribute sinks bypass source inspection.
+    [/\b(?:innerHTML|outerHTML|insertAdjacentHTML|setHTML|setHTMLUnsafe|parseHTML|parseHTMLUnsafe|createContextualFragment|DOMParser|setAttribute|setAttributeNS|appendChild|append|prepend|replaceChildren|replaceWith|insertBefore|replaceChild|insertAdjacentElement|attachShadow|cloneNode)\b/g, "uninspected DOM mutation"],
     // Styles belong in scanned CSS files; dynamic inline CSS is not statically inspectable.
     [/\b(?:style|cssText)\b/g, "inline style"],
     // Product elements must use the inspected JSX path, including when props or tag names are dynamic.
@@ -363,6 +365,22 @@ describe("browser-source boundary", () => {
 
   it("keeps presentation in scanned stylesheets", () => {
     expect(inspectNetworkSource("./Component.tsx", 'import "./styles.css"; <div className="card" />;').violations).toEqual([]);
+  });
+
+  it.each([
+    'ref.current.insertAdjacentHTML("beforeend", markup);',
+    'ref.current.outerHTML = markup;',
+    'const insert = ref.current.insertAdjacentHTML; insert.call(ref.current, "beforeend", markup);',
+    'ref.current["outer" + "HTML"] = markup;',
+    'ref.current.setHTMLUnsafe(markup);',
+    'ref.current.setHTML(markup);',
+    'range.createContextualFragment(markup);',
+    'const parse = DOMParser; new parse();',
+    'ref.current["set" + "Attribute"](name, value);',
+    'ref.current.appendChild(element);',
+    'ref.current.attachShadow(options);',
+  ])("rejects uninspected DOM mutation sinks: %s", (source) => {
+    expect(inspectNetworkSource("./Resource.tsx", source).violations).toContain("disallowed browser egress: uninspected DOM mutation");
   });
 
   it.each([
