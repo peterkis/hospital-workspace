@@ -84,7 +84,8 @@ function inspectStylesheetSource(source: string): string[] {
 
 function inspectNetworkSource(path: string, source: string) {
   const inspectedSource = normalizeEscapedIdentifiers(source);
-  const violations: string[] = [];
+  const inlineStyleSource = inspectedSource.replace(/["'`]\s*\+\s*["'`]/g, "").replaceAll("\\\\", "\\");
+  const violations: string[] = inspectStylesheetSource(inlineStyleSource);
   const directCalls: { index: number; target: string }[] = [];
   const directFetch = /(?<![\w$.])\bfetch\s*\(\s*(["'])([^"'\\\r\n]*)\1\s*,/g;
   for (const match of inspectedSource.matchAll(directFetch)) {
@@ -135,7 +136,7 @@ function inspectNetworkSource(path: string, source: string) {
     [/(?:\.|\]\s*)(?:src|href|action|data|poster|srcdoc)\s*=/g, "resource target assignment"],
     [/\bsetAttribute\s*\(\s*["'](?:src|href|action|data|poster|srcdoc)["']\s*,/g, "resource target attribute"],
     [/\burl\s*\(/gi, "CSS resource target"],
-    [/\b(?:window|globalThis)\.open\s*\(/g, "window navigation"],
+    [/(?<![\w$-])open(?![\w$-])/g, "window navigation"],
     [/\b(?:window\.)?location\.(?:assign|replace)\s*\(/g, "location navigation"],
     [/\b(?:window\.)?location(?:\.href)?\s*=/g, "location assignment"],
     [/\b(?:requestSubmit|submit)\s*\(/g, "form submission"],
@@ -256,6 +257,23 @@ describe("browser-source boundary", () => {
 
   it("retains ordinary CSS with local gradients and variables", () => {
     expect(inspectStylesheetSource(".card { color: var(--text); background: linear-gradient(red, blue); }")).toEqual([]);
+  });
+
+  it.each([
+    `<style>{'@import "/api/mvp/other";'}</style>`,
+    `<div style={{ backgroundImage: 'image-set("/api/mvp/other" 1x)' }} />`,
+    `<div style={{ backgroundImage: '-webkit-image-set("/api/mvp/other" 1x)' }} />`,
+    `<div style={{ backgroundImage: 'src("/api/mvp/other")' }} />`,
+    `<style>{'@im' + 'port "/api/mvp/other";'}</style>`,
+    `<div style={{ backgroundImage: 'image-' + 'set("/api/mvp/other" 1x)' }} />`,
+    String.raw`<style>{'@\\69mport "/api/mvp/other";'}</style>`,
+    'open("/api/mvp/other");',
+    'const navigate = open; navigate("/api/mvp/other");',
+    '(0, open)("/api/mvp/other");',
+    'open.call(null, "/api/mvp/other");',
+    'const navigate = open.bind(null); navigate("/api/mvp/other");',
+  ])("rejects inline styles and unqualified navigation: %s", (source) => {
+    expect(inspectNetworkSource("./Resource.tsx", source).violations.length).toBeGreaterThan(0);
   });
 
   it.each(allowedFetchTargets)("admits the fixed relative literal transport target %s", (target) => {
