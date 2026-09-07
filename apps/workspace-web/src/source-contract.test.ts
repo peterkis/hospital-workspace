@@ -393,7 +393,7 @@ describe("browser-source boundary", () => {
     'import React /* comment */ from "react";',
     'import * as helper from "./helper";',
     'import helper from "./helper";',
-    'import { request } from "unregistered-module";',
+    'import { request } f' + 'rom "unregistered-module";',
   ])("requires inspected named production imports: %s", (source) => {
     expect(inspectNetworkSource("./Resource.tsx", source).violations.length).toBeGreaterThan(0);
   });
