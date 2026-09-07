@@ -133,7 +133,8 @@ function inspectNetworkSource(path: string, source: string) {
   if (opaqueImport.test(inspectedSource) || namespaceExport.test(inspectedSource) || defaultAlias.test(inspectedSource)) {
     violations.push("uninspected namespace or default import");
   }
-  for (const match of inspectedSource.matchAll(/\b(?:from|import)(?:\s|\/\*[\s\S]*?\*\/)*["']([^"']+)["']/g)) {
+  const importSpecifier = new RegExp("\\b(?:from|import)" + importTrivia + "[\"']([^\"']+)[\"']", "g");
+  for (const match of inspectedSource.matchAll(importSpecifier)) {
     const specifier = match[1].split(/[?#]/, 1)[0];
     if (specifier.startsWith("/")) violations.push("unscanned absolute import");
     if (!specifier.startsWith(".")) {
@@ -377,6 +378,9 @@ describe("browser-source boundary", () => {
     'import "./side-effect.test.js";',
     'import "./side-effect.test.js?raw";',
     'import "./test/setup";',
+    'import { helper } from // note\n"./helper.test.js";',
+    'import // side effect\n"../outside.mjs";',
+    'import { helper } from /* block */ // line\n"./helper.spec.ts?raw";',
     'import "./side-effect.spec";',
     'import "/public-script.js";',
   ])("rejects unscanned production imports: %s", (source) => {
