@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-const productSources = import.meta.glob<string>(["./**/*.ts", "./**/*.tsx", "./**/*.css"], {
+const productSources = import.meta.glob<string>(["./**/*.ts", "./**/*.tsx", "./**/*.css", "./**/*.html", "../index.html"], {
   eager: true,
   import: "default",
   query: "?raw",
@@ -48,6 +48,7 @@ function jsxOpeningTags(source: string): { name: string; attributes: string }[] 
   const tags: { name: string; attributes: string }[] = [];
   for (const match of source.matchAll(/<\s*([A-Za-z][\w$.:-]*)\s+/g)) {
     const start = match.index + match[0].length;
+    let end = source.length;
     let quote = "";
     let braces = 0;
     for (let index = start; index < source.length; index += 1) {
@@ -55,6 +56,22 @@ function jsxOpeningTags(source: string): { name: string; attributes: string }[] 
       if (quote) {
         if (character === "\\") index += 1;
         else if (character === quote) quote = "";
+      } else if (braces > 0 && source.startsWith("/*", index)) {
+        const close = source.indexOf("*/", index + 2);
+        index = close === -1 ? source.length : close + 1;
+      } else if (braces > 0 && source.startsWith("//", index)) {
+        const close = source.indexOf("\n", index + 2);
+        index = close === -1 ? source.length : close;
+      } else if (braces > 0 && character === "/") {
+        // Conservatively consume regex literals; ambiguous division retains the remaining source below.
+        let inClass = false;
+        index += 1;
+        for (; index < source.length; index += 1) {
+          if (source[index] === "\\") index += 1;
+          else if (source[index] === "[") inClass = true;
+          else if (source[index] === "]") inClass = false;
+          else if (source[index] === "/" && !inClass) break;
+        }
       } else if (character === '"' || character === "'" || character === "`") {
         quote = character;
       } else if (character === "{") {
@@ -62,10 +79,12 @@ function jsxOpeningTags(source: string): { name: string; attributes: string }[] 
       } else if (character === "}") {
         braces -= 1;
       } else if (character === ">" && braces === 0) {
-        tags.push({ name: match[1], attributes: source.slice(start, index) });
+        end = index;
         break;
       }
     }
+    // Never omit an uncertain opening tag and silently lose a later spread/resource prop.
+    tags.push({ name: match[1], attributes: source.slice(start, end) });
   }
   return tags;
 }
@@ -81,6 +100,16 @@ function inspectStylesheetSource(source: string): string[] {
     .replace(/\/\*[\s\S]*?\*\//g, "");
   return /@import\b|\b(?:url|(?:-webkit-)?image-set|src)\s*\(/i.test(normalized)
     ? ["disallowed stylesheet resource"] : [];
+}
+
+const moduleEntry = '<script type="module" src="/src/main.tsx"></script>';
+
+function inspectHtmlSource(path: string, source: string): string[] {
+  const body = path === "../index.html" ? source.replace(moduleEntry, "") : source;
+  const violations = inspectNetworkSource(path, body).violations;
+  if (path === "../index.html" && source.split(moduleEntry).length !== 2) violations.push("invalid module entry");
+  if (/<\s*script\b|\bhttp-equiv\b|\bon[a-z]+\s*=/i.test(body)) violations.push("unregistered HTML execution or navigation");
+  return violations;
 }
 
 function inspectNetworkSource(path: string, source: string) {
@@ -162,7 +191,7 @@ function inspectNetworkSource(path: string, source: string) {
 
 describe("browser-source boundary", () => {
   const productionSources = Object.entries(productSources).filter(([path]) => isProductionSourcePath(path));
-  const sourceText = productionSources.filter(([path]) => !path.endsWith(".css")).map(([, content]) => content).join("\n");
+  const sourceText = productionSources.filter(([path]) => /\.tsx?$/.test(path)).map(([, content]) => content).join("\n");
 
   it("includes an embedded test token helper in production scans", () => {
     const path = "./capabilities/tickets/ticket.test.helpers.ts";
@@ -225,7 +254,9 @@ describe("browser-source boundary", () => {
 
   it("confines browser requests to the exact app-local transport targets", () => {
     for (const [path, content] of productionSources) {
-      expect(path.endsWith(".css") ? inspectStylesheetSource(content) : inspectNetworkSource(path, content).violations, path).toEqual([]);
+      const violations = path.endsWith(".css") ? inspectStylesheetSource(content)
+        : path.endsWith(".html") ? inspectHtmlSource(path, content) : inspectNetworkSource(path, content).violations;
+      expect(violations, path).toEqual([]);
     }
     expect(inspectNetworkSource(transportPath, productSources[transportPath]).targets).toEqual(allowedFetchTargets);
   });
@@ -292,6 +323,38 @@ describe("browser-source boundary", () => {
 
   it("keeps presentation in scanned stylesheets", () => {
     expect(inspectNetworkSource("./Component.tsx", 'import "./styles.css"; <div className="card" />;').violations).toEqual([]);
+  });
+
+  it("scans the actual HTML entry with only its fixed module script", () => {
+    expect(productSources["../index.html"]).toContain(moduleEntry);
+    expect(inspectHtmlSource("../index.html", productSources["../index.html"])).toEqual([]);
+  });
+
+  it.each([
+    '<link href="/api/mvp/other">',
+    '<img src="/api/mvp/other">',
+    '<meta http-equiv="refresh" content="0; url=/api/mvp/other">',
+    '<script>alert(1)</script>',
+    '<body onload="open(target)">',
+    moduleEntry,
+  ])("rejects added HTML resource/execution: %s", (extra) => {
+    expect(inspectHtmlSource("../index.html", moduleEntry + extra).length).toBeGreaterThan(0);
+  });
+
+  it("rejects a changed or relocated module entry", () => {
+    expect(inspectHtmlSource("../index.html", moduleEntry.replace("main.tsx", "other.tsx")).length).toBeGreaterThan(0);
+    expect(inspectHtmlSource("./other.html", moduleEntry).length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    '<Tag flag={/* } */ true} {...props} />',
+    '<Tag flag={// }\n true} {...props} />',
+    '<Tag flag={/}>/.test(value)} {...props} />',
+    '<Tag flag={/[}/]/.test(value)} {...props} />',
+    '<Tag flag={/"/.test(value)} {...props} />',
+    '<Tag flag={value / 2} {...props} />',
+  ])("retains spreads after expression comments and regex: %s", (source) => {
+    expect(inspectNetworkSource("./Resource.tsx", source).violations).toContain("disallowed browser egress: uninspected JSX spread");
   });
 
   it("allows only the existing immutable icon spread", () => {
