@@ -361,7 +361,10 @@ implementationPackets:
       - apps/workspace-web/src/platform/api/mvp-api-client.test.ts
       - apps/workspace-web/src/source-contract.test.ts
       - apps/workspace-web/vite.config.ts
-    prohibitedPaths: All paths outside ownedPaths; no app manifest or new SDK workspace.
+      # Human-owner authorization on 2026-09-08 for PR 16: redirect-classification erratum only.
+      - docs/program/mvp/MVP-04-ARCHITECTURE-PREFLIGHT.md
+      - docs/program/mvp/MVP-04-PROTOTYPE-BOUNDARY.yaml
+    prohibitedPaths: All paths outside ownedPaths; the two planning documents may change only for the owner-authorized redirect-classification erratum and its scope record; no app manifest or new SDK workspace.
     acceptance: Strict fixed relative client, positive/negative source cases, timeout/abort and sanitized proxy errors.
     rollback: Restore prior Vite/source-contract and remove app-local client before injection.
     reviewers: [workspace-frontend-owner, frontend-reviewer, terra_reviewer, terra_security]

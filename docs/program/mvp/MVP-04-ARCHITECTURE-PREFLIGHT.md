@@ -317,6 +317,11 @@ The client quarantines `opaqueredirect`, exposed HTTP 300–399, and
 `redirected: true` as `INVALID_RESPONSE` before inspecting headers or body.
 It never follows a redirect, reads Location, rewrites an endpoint, or sends a
 second request. Ordinary fetch rejection remains `UNAVAILABLE`.
+On 2026-09-08, the human owner explicitly authorized retaining this redirect
+erratum in PR #16 and adding this document and
+`MVP-04-PROTOTYPE-BOUNDARY.yaml` to I02's owned paths solely for the erratum
+and its scope record. This authorization does not expand the other I02 paths
+or start a later implementation packet.
 Only Accept and command Content-Type headers are authored. Responses must be
 JSON, at most 8192 bytes, and match the strict discriminated shape and expected
 HTTP status. Bound the response reader; Content-Length alone is insufficient.
