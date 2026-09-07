@@ -84,10 +84,7 @@ function inspectStylesheetSource(source: string): string[] {
 
 function inspectNetworkSource(path: string, source: string) {
   const inspectedSource = normalizeEscapedIdentifiers(source);
-  const trivia = String.raw`(?:\s|/\*[\s\S]*?\*/|//[^\r\n]*(?:\r?\n|$))*`;
-  const literalJoin = new RegExp("[\"'`]" + trivia + "\\+" + trivia + "[\"'`]", "g");
-  const inlineStyleSource = inspectedSource.replace(literalJoin, "").replaceAll("\\\\", "\\");
-  const violations: string[] = inspectStylesheetSource(inlineStyleSource);
+  const violations: string[] = inspectStylesheetSource(inspectedSource);
   const directCalls: { index: number; target: string }[] = [];
   const directFetch = /(?<![\w$.])\bfetch\s*\(\s*(["'])([^"'\\\r\n]*)\1\s*,/g;
   for (const match of inspectedSource.matchAll(directFetch)) {
@@ -125,6 +122,8 @@ function inspectNetworkSource(path: string, source: string) {
     }
   }
   const browserEgressPatterns: readonly [RegExp, string][] = [
+    // Styles belong in scanned CSS files; dynamic inline CSS is not statically inspectable.
+    [/\b(?:style|cssText)\b/g, "inline style"],
     // Product elements must use the inspected JSX path, including when props or tag names are dynamic.
     [/\b(?:createElement|cloneElement|jsx|jsxs|jsxDEV)\b/g, "uninspected element factory"],
     [/\b(?:src|srcSet|href|xlinkHref|poster|srcDoc|formAction)\b["']?\s*(?:[:=]|\])/gi, "resource prop"],
@@ -272,6 +271,9 @@ describe("browser-source boundary", () => {
     'const image = "u" + /* split */ "rl(/api/mvp/other)"; <div style={{ backgroundImage: image }} />;',
     'const image = "u" // split\n + "rl(/api/mvp/other)"; <div style={{ backgroundImage: image }} />;',
     'const image = "image-" + // split\n "set(/api/mvp/other 1x)"; <div style={{ backgroundImage: image }} />;',
+    'const image = ("u") + ("rl(/api/mvp/other)"); <div style={{ backgroundImage: image }} />;',
+    '<div style={unknownStyle} />;',
+    'const props = { style: unknownStyle }; <div {...props} />;',
     String.raw`<style>{'@\\69mport "/api/mvp/other";'}</style>`,
     'open("/api/mvp/other");',
     'const navigate = open; navigate("/api/mvp/other");',
@@ -280,6 +282,10 @@ describe("browser-source boundary", () => {
     'const navigate = open.bind(null); navigate("/api/mvp/other");',
   ])("rejects inline styles and unqualified navigation: %s", (source) => {
     expect(inspectNetworkSource("./Resource.tsx", source).violations.length).toBeGreaterThan(0);
+  });
+
+  it("keeps presentation in scanned stylesheets", () => {
+    expect(inspectNetworkSource("./Component.tsx", 'import "./styles.css"; <div className="card" />;').violations).toEqual([]);
   });
 
   it.each(allowedFetchTargets)("admits the fixed relative literal transport target %s", (target) => {
