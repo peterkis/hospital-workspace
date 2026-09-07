@@ -43,6 +43,32 @@ function normalizeEscapedIdentifiers(source: string): string {
   }
 }
 
+function jsxOpeningTags(source: string): { name: string; attributes: string }[] {
+  const tags: { name: string; attributes: string }[] = [];
+  for (const match of source.matchAll(/<\s*([A-Za-z][\w$.:-]*)\s+/g)) {
+    const start = match.index + match[0].length;
+    let quote = "";
+    let braces = 0;
+    for (let index = start; index < source.length; index += 1) {
+      const character = source[index];
+      if (quote) {
+        if (character === "\\") index += 1;
+        else if (character === quote) quote = "";
+      } else if (character === '"' || character === "'" || character === "`") {
+        quote = character;
+      } else if (character === "{") {
+        braces += 1;
+      } else if (character === "}") {
+        braces -= 1;
+      } else if (character === ">" && braces === 0) {
+        tags.push({ name: match[1], attributes: source.slice(start, index) });
+        break;
+      }
+    }
+  }
+  return tags;
+}
+
 function inspectNetworkSource(path: string, source: string) {
   const inspectedSource = normalizeEscapedIdentifiers(source);
   const violations: string[] = [];
@@ -86,9 +112,6 @@ function inspectNetworkSource(path: string, source: string) {
     // Product elements must use the inspected JSX path, including when props or tag names are dynamic.
     [/\b(?:createElement|cloneElement|jsx|jsxs|jsxDEV)\b/g, "uninspected element factory"],
     [/\b(?:src|srcSet|href|xlinkHref|poster|srcDoc|formAction)\b["']?\s*(?:[:=]|\])/gi, "resource prop"],
-    [/<\s*[\w$.:-]+\s+(?:=>|[^>])*\b(?:action|data)\s*=/g, "resource JSX prop"],
-    // Unknown component props could become intrinsic resource props; use explicit component props instead.
-    [/<\s*(?:[A-Z][\w$]*|[\w$]+\.[\w$.]+)\s+(?:=>|[^>])*\{\s*\.\.\./g, "uninspected component spread"],
     [/\b(?:globalThis|window|navigator|document)\s*\[/g, "computed browser-global access"],
     [/\bReflect\s*\./g, "reflective browser access"],
     [/\.\s*constructor\s*\(/g, "dynamic constructor access"],
@@ -106,6 +129,13 @@ function inspectNetworkSource(path: string, source: string) {
   ];
   for (const [pattern, label] of browserEgressPatterns) {
     if (pattern.test(inspectedSource)) violations.push(`disallowed browser egress: ${label}`);
+  }
+  for (const tag of jsxOpeningTags(inspectedSource)) {
+    if (/\b(?:action|data)\s*=/.test(tag.attributes)) violations.push("disallowed browser egress: resource JSX prop");
+    // Unknown component props could become intrinsic resource props; use explicit component props instead.
+    if ((/^[A-Z]/.test(tag.name) || tag.name.includes(".")) && /\{\s*\.\.\./.test(tag.attributes)) {
+      violations.push("disallowed browser egress: uninspected component spread");
+    }
   }
   return { targets: directCalls.map((call) => call.target), violations };
 }
@@ -271,6 +301,11 @@ describe("browser-source boundary", () => {
     'const Tag = "form"; <Tag action="/api/mvp/other" />;',
     'const Tag = "form"; <Tag onSubmit={() => {}} action="/api/mvp/other" />;',
     'const Tag = "object"; <Tag data="/api/mvp/other" />;',
+    'const Tag = "object"; <Tag title=">" data="/api/mvp/other" />;',
+    'const Tag = "form"; <Tag title=">" action="/api/mvp/other" />;',
+    'const Tag = "img"; <Tag title=">" {...props} />;',
+    'const Tag = "object"; <Tag hidden={count > 0} data="/api/mvp/other" />;',
+    'const Tag = "img"; <Tag hidden={count > 0} {...props} />;',
     '<input type="image" src="/api/mvp/other" />;',
     '<button formAction="/api/mvp/other" />;',
     'const props = { "src": target };',
