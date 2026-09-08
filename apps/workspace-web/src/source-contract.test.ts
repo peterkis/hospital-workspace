@@ -181,8 +181,9 @@ function inspectNetworkSource(path: string, source: string) {
     /\bwindow\.(?:addEventListener|removeEventListener)\b/g,
     /\bnew URLSearchParams\(window\.location\.search\)\.get\("scenario"\)/g,
     /\bdocument\.(?:getElementById|querySelectorAll)\b/g,
+    /\bObject\.(?:hasOwn|keys|values|entries|freeze|fromEntries)\b/g,
   ].flatMap((pattern) => [...inspectedSource.matchAll(pattern)].map((match) => ({ start: match.index, end: match.index + match[0].length })));
-  for (const match of inspectedSource.matchAll(/\b(globalThis|window|document|navigator|self|frames|top|parent|history|location|navigation)\b/g)) {
+  for (const match of inspectedSource.matchAll(/\b(globalThis|window|document|navigator|self|frames|top|parent|history|location|navigation|Object)\b/g)) {
     if (!allowedGlobalReferences.some((reference) => match.index >= reference.start && match.index < reference.end)) {
       violations.push(`disallowed browser-global access: ${match[1]}`);
     }
@@ -217,9 +218,16 @@ function inspectNetworkSource(path: string, source: string) {
     [/\b(?:window\.)?location\.(?:assign|replace)\s*\(/g, "location navigation"],
     [/\b(?:window\.)?location(?:\.href)?\s*=/g, "location assignment"],
     [/\b(?:requestSubmit|submit)\s*\(/g, "form submission"],
+    [/\bObject\s*\.\s*assign\b/g, "uninspected object mutation"],
   ];
   for (const [pattern, label] of browserEgressPatterns) {
     if (pattern.test(inspectedSource)) violations.push(`disallowed browser egress: ${label}`);
+  }
+  const syntheticSubmitBinding = 'const ticketRuntime = useSyntheticTicketRuntime(initialTicket, scenario, runtime.selectedThreadId ?? "no-thread");';
+  const formSource = path === "./App.tsx" && inspectedSource.includes(syntheticSubmitBinding)
+    ? inspectedSource.replace("onSubmit={ticketRuntime.submit}", "") : inspectedSource;
+  if (/(?:\.\s*(?:requestSubmit|submit)\b|\[\s*["'`](?:requestSubmit|submit)["'`]\s*\])/.test(formSource)) {
+    violations.push("disallowed browser egress: indirect form submission");
   }
   const fixedIconProps = path === "./App.tsx" && inspectedSource.includes(approvedIconProps)
     && !/\bcommon\b/.test(inspectedSource.replace(approvedIconProps, "").replaceAll("{...common}", ""));
@@ -369,6 +377,37 @@ describe("browser-source boundary", () => {
 
   it("keeps presentation in scanned stylesheets", () => {
     expect(inspectNetworkSource("./Component.tsx", 'import "./styles.css"; <div className="card" />;').violations).toEqual([]);
+  });
+
+  it.each([
+    'const Tag = "form"; <Tag ref={ref} />; Object.assign(ref.current, { action: "/api/mvp/other" }); ref.current.submit.call(ref.current);',
+    'const send = ref.current.submit; send.call(ref.current);',
+    'ref.current.submit.bind(ref.current)();',
+    'ref.current["sub" /* split */ + "mit"].call(ref.current);',
+    'const send = ref.current.requestSubmit; send.call(ref.current);',
+    'ref.current["requestSubmit"]();',
+  ])("rejects indirect native form submission: %s", (source) => {
+    expect(inspectNetworkSource("./Resource.tsx", source).violations).toContain("disallowed browser egress: indirect form submission");
+  });
+
+  it("retains the synthetic submit action value", () => {
+    expect(inspectNetworkSource("./Command.ts", 'const command = { action: "submit" };').violations).toEqual([]);
+  });
+
+  it("retains only the existing synthetic hook submit callback binding", () => {
+    const source = 'const ticketRuntime = useSyntheticTicketRuntime(initialTicket, scenario, runtime.selectedThreadId ?? "no-thread"); <SyntheticTicketExperience onSubmit={ticketRuntime.submit} />';
+    expect(inspectNetworkSource("./App.tsx", source).violations).toEqual([]);
+    expect(inspectNetworkSource("./Other.tsx", source).violations.length).toBeGreaterThan(0);
+    expect(inspectNetworkSource("./App.tsx", source + " ticketRuntime.submit.call(ticketRuntime);").violations.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    'const mutate = Object.assign; mutate(ref.current, props);',
+    'Object["as" + "sign"](ref.current, props);',
+    'const root = Object; root.assign(ref.current, props);',
+    'const { assign } = Object; assign(ref.current, props);',
+  ])("rejects uninspected object mutation aliases: %s", (source) => {
+    expect(inspectNetworkSource("./Resource.tsx", source).violations.length).toBeGreaterThan(0);
   });
 
   it.each([
