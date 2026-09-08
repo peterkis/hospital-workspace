@@ -23,6 +23,13 @@ const scriptFileSuffix = /\.(?:[cm]?[jt]s|[jt]sx)$/;
 const actualTestFileSuffix = /\.(?:test|spec)\.(?:[cm]?[jt]s|[jt]sx)$/;
 const approvedIconProps = 'const common = { fill: "none", stroke: "currentColor", strokeLinecap: "round" as const, strokeLinejoin: "round" as const, strokeWidth: 1.8 };';
 const approvedSyntheticSubmitProps = "<SyntheticTicketExperience currentReceipt={ticketRuntime.currentReceipt} onClearReceipt={ticketRuntime.clearReceipt} onPersonaChange={ticketRuntime.setPersona} onSubmit={ticketRuntime.submit}";
+const submitComponents: Readonly<Record<string, readonly string[]>> = {
+  "./App.tsx": ["SyntheticTicketExperience", "ActivityTimeline"],
+  "./capabilities/tickets/SyntheticTicketExperience.tsx": ["TicketLifecycleCard"],
+  "./capabilities/tickets/TicketTimeline.tsx": ["ActivityTimeline"],
+  "./features/timeline/ActivityTimeline.tsx": ["StructuredCard"],
+  "./features/cards/StructuredCard.tsx": ["Renderer"],
+};
 
 function isProductionSourcePath(path: string): boolean {
   const normalizedPath = path.replaceAll("\\", "/");
@@ -233,6 +240,9 @@ function inspectNetworkSource(path: string, source: string) {
   const fixedIconProps = path === "./App.tsx" && inspectedSource.includes(approvedIconProps)
     && !/\bcommon\b/.test(inspectedSource.replace(approvedIconProps, "").replaceAll("{...common}", ""));
   for (const tag of jsxOpeningTags(inspectedSource)) {
+    if (/\bonSubmit\s*=/.test(tag.attributes) && !submitComponents[path]?.includes(tag.name)) {
+      violations.push("disallowed browser egress: unregistered submit callback");
+    }
     if (/\b(?:action|data)\s*=/.test(tag.attributes)) violations.push("disallowed browser egress: resource JSX prop");
     // Preserve only the existing literal icon props, with no other reference that could mutate or shadow them.
     const attributes = fixedIconProps && /^(?:path|rect|circle)$/.test(tag.name)
@@ -402,6 +412,11 @@ describe("browser-source boundary", () => {
     expect(inspectNetworkSource("./App.tsx", source + " ticketRuntime.submit.call(ticketRuntime);").violations.length).toBeGreaterThan(0);
     expect(inspectNetworkSource("./App.tsx", source.replace("<SyntheticTicketExperience", "<Tag")).violations).toContain("disallowed browser egress: indirect form submission");
     expect(inspectNetworkSource("./App.tsx", source.replace("<SyntheticTicketExperience", "<form")).violations).toContain("disallowed browser egress: indirect form submission");
+  });
+
+  it.each(["Tag", "form", "div"])("rejects a submit callback on unregistered %s", (tag) => {
+    const source = `const ticketRuntime = useSyntheticTicketRuntime(initialTicket, scenario, runtime.selectedThreadId ?? "no-thread"); const { submit: handler } = ticketRuntime; const Tag = "form"; <${tag} onSubmit={handler} />`;
+    expect(inspectNetworkSource("./App.tsx", source).violations).toContain("disallowed browser egress: unregistered submit callback");
   });
 
   it.each([
