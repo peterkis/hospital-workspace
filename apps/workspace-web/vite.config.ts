@@ -39,6 +39,17 @@ export default defineConfig({
                 || normalizedName.startsWith("x-hospital-")) proxyRequest.removeHeader(headerName);
             }
           });
+          proxy.on("proxyRes", (proxyResponse) => {
+            for (const headerName of Object.keys(proxyResponse.headers)) {
+              const normalizedName = headerName.toLowerCase();
+              if (normalizedName === "set-cookie"
+                || normalizedName === "set-cookie2"
+                || normalizedName === "cookie"
+                || normalizedName === "authorization"
+                || normalizedName === "proxy-authorization"
+                || normalizedName.startsWith("x-hospital-")) delete proxyResponse.headers[headerName];
+            }
+          });
           proxy.on("error", (_error, _request, response) => {
             if (!("writeHead" in response) || response.headersSent || response.writableEnded) return;
             response.writeHead(502, {

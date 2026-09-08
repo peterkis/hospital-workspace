@@ -37,6 +37,17 @@ const errorStatuses = {
   INTERNAL_ERROR: 500,
   LOCAL_GATEWAY_UNAVAILABLE: 502,
 } as const satisfies Record<(typeof mvpErrorCodes)[number], number>;
+const errorMessages = {
+  INVALID_REQUEST: "Invalid synthetic request.",
+  UNKNOWN_SYNTHETIC_PERSONA: "Unknown synthetic persona.",
+  UNKNOWN_ACTION: "Unknown synthetic action.",
+  NOT_FOUND: "Route not found.",
+  METHOD_NOT_ALLOWED: "Method not allowed.",
+  REQUEST_TOO_LARGE: "Request too large.",
+  UNSUPPORTED_MEDIA_TYPE: "Unsupported media type.",
+  INTERNAL_ERROR: "Gateway request failed.",
+  LOCAL_GATEWAY_UNAVAILABLE: "Local prototype Gateway is unavailable.",
+} as const satisfies Record<(typeof mvpErrorCodes)[number], string>;
 
 const expectedPersona = {
   reporter: {
@@ -138,9 +149,7 @@ function isCommandReceipt(value: unknown): value is MvpCommandReceipt {
 function isErrorEnvelope(value: unknown): value is MvpErrorEnvelope {
   if (!isRecord(value) || !hasExactKeys(value, ["code", "message", "synthetic", "boundary"], ["correlationId"])) return false;
   return isOneOf(value.code, mvpErrorCodes)
-    && typeof value.message === "string"
-    && value.message.length >= 1
-    && value.message.length <= 128
+    && value.message === errorMessages[value.code]
     && value.synthetic === true
     && value.boundary === "local-prototype"
     && (value.correlationId === undefined || isCorrelationId(value.correlationId));

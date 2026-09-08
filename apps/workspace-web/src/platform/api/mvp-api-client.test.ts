@@ -144,7 +144,18 @@ const errorStatusCases = [
 ] as const;
 
 function errorEnvelope(code: string) {
-  return { code, message: "Untrusted server detail.", synthetic: true, boundary: "local-prototype" };
+  const messages: Record<string, string> = {
+    INVALID_REQUEST: "Invalid synthetic request.",
+    UNKNOWN_SYNTHETIC_PERSONA: "Unknown synthetic persona.",
+    UNKNOWN_ACTION: "Unknown synthetic action.",
+    NOT_FOUND: "Route not found.",
+    METHOD_NOT_ALLOWED: "Method not allowed.",
+    REQUEST_TOO_LARGE: "Request too large.",
+    UNSUPPORTED_MEDIA_TYPE: "Unsupported media type.",
+    INTERNAL_ERROR: "Gateway request failed.",
+    LOCAL_GATEWAY_UNAVAILABLE: "Local prototype Gateway is unavailable.",
+  };
+  return { code, message: messages[code], synthetic: true, boundary: "local-prototype" };
 }
 
 beforeEach(() => {
@@ -683,7 +694,7 @@ describe("MVP browser API client", () => {
     expect(JSON.stringify(error)).not.toContain("Route not found.");
   });
 
-  it("discards arbitrary bounded server error text instead of exposing it to client state", async () => {
+  it("quarantines arbitrary bounded server error text instead of exposing it to client state", async () => {
     fetchMock.mockResolvedValue(jsonResponse({
       code: "NOT_FOUND",
       message: "Sensitive-looking upstream token detail.",
@@ -693,11 +704,19 @@ describe("MVP browser API client", () => {
     const error = await clientError(createMvpApiClient().readBootstrap("reporter"));
     expect(error).toEqual({
       name: "MvpApiClientError",
-      code: "UNAVAILABLE",
-      message: "The local prototype service is unavailable.",
-      status: 404,
+      code: "INVALID_RESPONSE",
+      message: "The local prototype returned an invalid response.",
     });
     expect(JSON.stringify(error)).not.toMatch(/upstream|token|detail/i);
+  });
+
+  it.each(errorStatusCases)("quarantines altered fixed messages for %s", async (code, status) => {
+    for (const message of ["Altered public message.", errorEnvelope(code).message + " ", ""]) {
+      fetchMock.mockResolvedValue(jsonResponse({ ...errorEnvelope(code), message }, status));
+      expect((await clientError(createMvpApiClient().readBootstrap("reporter"))).code).toBe("INVALID_RESPONSE");
+      fetchMock.mockResolvedValue(jsonResponse({ ...errorEnvelope(code), message }, status));
+      expect((await clientError(createMvpApiClient().sendCommand(command))).code).toBe("INVALID_RESPONSE");
+    }
   });
 
   it("does not propagate HTML proxy garbage into a usable value or error", async () => {

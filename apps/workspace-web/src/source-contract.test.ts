@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
+import { parseSync, type ESTree } from "vite";
 
 const productSources = import.meta.glob<string>(["./**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}", "./**/*.css", "./**/*.html", "../index.html"], {
+  exhaustive: true,
   eager: true,
   import: "default",
   query: "?raw",
 });
 
 const formatSources = import.meta.glob<string>(["./**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}", "../*.{html,json,md,ts}"], {
+  exhaustive: true,
   eager: true,
   import: "default",
   query: "?raw",
@@ -30,6 +33,48 @@ const submitComponents: Readonly<Record<string, readonly string[]>> = {
   "./features/timeline/ActivityTimeline.tsx": ["StructuredCard"],
   "./features/cards/StructuredCard.tsx": ["Renderer"],
 };
+const computedDataReads: Readonly<Record<string, readonly string[]>> = {
+  "./App.tsx": ["paths[name]"],
+  "./capabilities/tickets/SyntheticTicketExperience.tsx": ["SYNTHETIC_TICKET_STATUS_LABELS[status]"],
+  "./capabilities/tickets/ticket-fixtures.ts": ["SYNTHETIC_TICKET_SLA_BY_STATUS[status]"],
+  "./capabilities/tickets/ticket-projection.ts": ["SYNTHETIC_TICKET_STATUS_LABELS[ticket.status]", "SYNTHETIC_TICKET_STATUS_LABELS[event.priorStatus]", "SYNTHETIC_TICKET_STATUS_LABELS[event.resultingStatus]", "SYNTHETIC_TICKET_STATUS_LABELS[receipt.resultingStatus]", "SYNTHETIC_TICKET_STATUS_LABELS[receipt.priorStatus]"],
+  "./capabilities/tickets/TicketCanvasPanel.tsx": ["SYNTHETIC_TICKET_STATUS_LABELS[event.priorStatus]", "SYNTHETIC_TICKET_STATUS_LABELS[event.resultingStatus]"],
+  "./features/canvas/canvas-registry.tsx": ["CANVAS_REGISTRY[route as PrototypeCanvasRoute]", "CONTEXT_ROUTE_OPTIONS[threadId]"],
+  "./features/cards/card-registry.tsx": ["card.fields[field]", "CARD_REGISTRY[`${card.cardType}@${card.cardVersion}` as keyof typeof CARD_REGISTRY]"],
+  "./features/threads/workspace-runtime.ts": ["state.receipts[event.actionId]"],
+  "./features/timeline/ActivityTimeline.tsx": ["labels[activity.kind]", "receipts[actionId]"],
+  "./platform/api/mvp-api-client.ts": ["expected[index]", "expectedPersona[persona]", "errorStatuses[envelope.code]", "errorMessages[value.code]"],
+  "./platform/api/mvp-api-errors.ts": ["publicMessages[code]"],
+};
+// These finite MVP data/registry exceptions bind the entire reviewed source, including lexical bindings.
+// A changed file must be reviewed before refreshing its digest; matching an expression's text alone is insufficient.
+const reviewedDynamicSources: Readonly<Record<string, string>> = {
+  "./App.tsx": "c0e9d23f1b2daf49b8adb83530cd6ca2006725adc368b19ad39473cfe0a08978",
+  "./capabilities/tickets/SyntheticTicketExperience.tsx": "aedca0de3ee6adb2c6de7179e58a853c9d68a9e5b4735d94424c8bc6f1cd0e56",
+  "./capabilities/tickets/ticket-fixtures.ts": "038226b09d5271d1a0ba3c647ab6ce780cf1ae6e763f0ba8f49eb5ce214d2b68",
+  "./capabilities/tickets/ticket-projection.ts": "31571c1873b79a4999283ea28894dfb5a6b4fe6dba18fa46491ed1bb1b1479b6",
+  "./capabilities/tickets/TicketCanvasPanel.tsx": "72ebabce18564439792a568d399ddcf90af72816d514abc67c1962195e347271",
+  "./features/canvas/canvas-registry.tsx": "0e21ed0ed3a2fe32877f8ea51d113a5eaa3d0b17c6ac752e95b0618c6a660d69",
+  "./features/cards/card-registry.tsx": "cd7fefae8ef4d6b97928476be1e579c16f01a05780036d5a8bb3fc06fe7d8ee3",
+  "./features/threads/workspace-runtime.ts": "6cc4715281ef6fac1936734f765f0a903f165d030a2fb532f6f18df6cfb365d1",
+  "./features/timeline/ActivityTimeline.tsx": "8521f0a6bb3bcf9ebac3d29c43dd24daea2460fef702f15983d6f4d832c198c7",
+  "./platform/api/mvp-api-client.ts": "7c1b1a2ef0bd96375f4381a3c27510f7d0fe66dcfa30c6160c8efa338b969456",
+  "./platform/api/mvp-api-errors.ts": "122d68bd706f8d3c8d6b9ac538a620a0ab33def5301e083b6bfa8ca40eb2dd01",
+};
+
+const reviewedDynamicContents = new Map(await Promise.all(Object.entries(reviewedDynamicSources).map(async ([path, digest]) => {
+  const source = productSources[path].replaceAll("\r\n", "\n");
+  const bytes = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(source));
+  const actual = Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
+  return [path, actual === digest ? source : undefined] as const;
+})));
+
+function matchesReviewedDynamicSource(path: string, source: string): boolean {
+  return reviewedDynamicContents.get(path) === source.replaceAll("\r\n", "\n");
+}
+const intrinsicElements = new Set("article aside b br button circle dd div dl dt fieldset h1 h2 h3 h4 header input kbd label legend li main nav ol option p path rect section select small span strong svg time ul".split(" "));
+const dangerousMembers = new Set("fetch XMLHttpRequest WebSocket WebTransport EventSource sendBeacon postMessage importScripts Function AsyncFunction GeneratorFunction AsyncGeneratorFunction eval constructor __proto__ Reflect innerHTML outerHTML insertAdjacentHTML setHTML setHTMLUnsafe parseHTML parseHTMLUnsafe createContextualFragment DOMParser setAttribute setAttributeNS setAttributeNode setAttributeNodeNS setNamedItem setNamedItemNS appendChild append prepend before after insertNode replaceChildren replaceWith insertBefore replaceChild insertAdjacentElement attachShadow cloneNode style cssText src srcSet href xlinkHref poster srcDoc formAction action data submit requestSubmit createElement cloneElement createPortal jsx jsxs jsxDEV preload preloadModule preinit preinitModule preconnect prefetchDNS".split(" "));
+const domMembers = new Set("innerHTML outerHTML insertAdjacentHTML setHTML setHTMLUnsafe parseHTML parseHTMLUnsafe createContextualFragment setAttribute setAttributeNS setAttributeNode setAttributeNodeNS setNamedItem setNamedItemNS appendChild append prepend before after insertNode replaceChildren replaceWith insertBefore replaceChild insertAdjacentElement attachShadow cloneNode postMessage".split(" "));
 
 function isProductionSourcePath(path: string): boolean {
   const normalizedPath = path.replaceAll("\\", "/");
@@ -56,7 +101,158 @@ function normalizeEscapedIdentifiers(source: string): string {
   }
 }
 
-function jsxOpeningTags(source: string): { name: string; attributes: string }[] {
+function* syntaxNodes(value: unknown): Generator<ESTree.Node> {
+  if (value === null || typeof value !== "object") return;
+  if (Array.isArray(value)) {
+    for (const entry of value) yield* syntaxNodes(entry);
+    return;
+  }
+  if ("type" in value && typeof value.type === "string") yield value as ESTree.Node;
+  for (const entry of Object.values(value)) yield* syntaxNodes(entry);
+}
+
+function staticKey(node: ESTree.Node): string | number | undefined {
+  if (node.type === "Literal" && (typeof node.value === "string" || typeof node.value === "number")) return node.value;
+  if (node.type === "TSAsExpression" || node.type === "TSSatisfiesExpression" || node.type === "TSNonNullExpression" || node.type === "ChainExpression") return staticKey(node.expression);
+  if (node.type === "BinaryExpression" && node.operator === "+") {
+    const left = staticKey(node.left);
+    const right = staticKey(node.right);
+    if (left === undefined || right === undefined) return undefined;
+    return typeof left === "number" && typeof right === "number" ? left + right : `${left}${right}`;
+  }
+  if (node.type === "TemplateLiteral") {
+    let value = node.quasis[0].value.cooked ?? node.quasis[0].value.raw;
+    for (let index = 0; index < node.expressions.length; index += 1) {
+      const part = staticKey(node.expressions[index]);
+      if (part === undefined) return undefined;
+      value += `${part}${node.quasis[index + 1].value.cooked ?? node.quasis[index + 1].value.raw}`;
+    }
+    return value;
+  }
+  return undefined;
+}
+
+function syntaxParents(nodes: readonly ESTree.Node[]): Map<ESTree.Node, ESTree.Node> {
+  const parents = new Map<ESTree.Node, ESTree.Node>();
+  for (const node of nodes) {
+    for (const value of Object.values(node)) {
+      for (const child of Array.isArray(value) ? value : [value]) {
+        if (child !== null && typeof child === "object" && "type" in child) parents.set(child as ESTree.Node, node);
+      }
+    }
+  }
+  return parents;
+}
+
+function mutationOrCall(node: ESTree.Node, parents: ReadonlyMap<ESTree.Node, ESTree.Node>): boolean {
+  let value = node;
+  let parent = parents.get(value);
+  while (parent && ["TSAsExpression", "TSSatisfiesExpression", "TSNonNullExpression", "ChainExpression"].includes(parent.type)) {
+    value = parent;
+    parent = parents.get(value);
+  }
+  return !!parent && ((parent.type === "AssignmentExpression" && parent.left === value)
+    || (parent.type === "UpdateExpression" && parent.argument === value)
+    || ((parent.type === "CallExpression" || parent.type === "NewExpression") && parent.callee === value)
+    || (parent.type === "UnaryExpression" && parent.operator === "delete" && parent.argument === value));
+}
+
+function resolveScannedImport(path: string, specifier: string, sources: Readonly<Record<string, string>>): string | undefined {
+  if (!specifier.startsWith(".") || /[?#]/.test(specifier)) return undefined;
+  const parts: string[] = [];
+  for (const part of [...path.split("/").slice(0, -1), ...specifier.split("/")]) {
+    if (part === ".") continue;
+    if (part === ".." && parts.length && parts.at(-1) !== "..") parts.pop();
+    else parts.push(part);
+  }
+  if (parts[0] === "..") return undefined;
+  const base = `./${parts.join("/")}`;
+  return [base, ...[".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"].flatMap((extension) => [base + extension, `${base}/index${extension}`])]
+    .find((candidate) => Object.hasOwn(sources, candidate) && isProductionSourcePath(candidate));
+}
+
+function patternNames(node: ESTree.Node): string[] {
+  if (node.type === "Identifier") return [node.name];
+  if (node.type === "AssignmentPattern") return patternNames(node.left);
+  if (node.type === "RestElement") return patternNames(node.argument);
+  if (node.type === "ArrayPattern") return node.elements.flatMap((entry) => entry ? patternNames(entry) : []);
+  if (node.type === "ObjectPattern") return node.properties.flatMap((entry) => patternNames(entry.type === "RestElement" ? entry.argument : entry.value));
+  return [];
+}
+
+function componentBindings(path: string, nodes: readonly ESTree.Node[], sources: Readonly<Record<string, string>>): Set<string> {
+  const bindings = new Map<string, ESTree.Node[]>();
+  const add = (names: string[], node: ESTree.Node) => {
+    for (const name of names) bindings.set(name, [...(bindings.get(name) ?? []), node]);
+  };
+  for (const node of nodes) {
+    if (node.type === "VariableDeclarator") add(patternNames(node.id), node);
+    if (node.type === "FunctionDeclaration" || node.type === "FunctionExpression" || node.type === "ArrowFunctionExpression") {
+      if (node.type !== "ArrowFunctionExpression" && node.id) add([node.id.name], node);
+      for (const parameter of node.params) add(patternNames(parameter), parameter);
+    }
+    if (node.type === "ImportSpecifier" || node.type === "ImportDefaultSpecifier" || node.type === "ImportNamespaceSpecifier") add([node["local"].name], node);
+    if (node.type === "CatchClause" && node.param) add(patternNames(node.param), node.param);
+    if (node.type === "AssignmentExpression") add(patternNames(node.left), node);
+    if (node.type === "UpdateExpression") add(patternNames(node.argument), node);
+  }
+  const parents = syntaxParents(nodes);
+  const callable = (node: ESTree.Node | null | undefined) => node?.type === "FunctionDeclaration" || node?.type === "FunctionExpression" || node?.type === "ArrowFunctionExpression";
+  const verified = new Set<string>();
+  for (const [name, declarations] of bindings) {
+    if (declarations.length !== 1) continue;
+    const declaration = declarations[0];
+    if (callable(declaration) || (declaration.type === "VariableDeclarator" && callable(declaration.init))) verified.add(name);
+    if (declaration.type === "ImportSpecifier") {
+      const owner = parents.get(declaration);
+      if (owner?.type !== "ImportDeclaration") continue;
+      const imported = declaration.imported.type === "Identifier" ? declaration.imported.name : String(declaration.imported.value);
+      if (owner.source.value === "react" && imported === "StrictMode") verified.add(name);
+      const resolved = resolveScannedImport(path, String(owner.source.value), sources);
+      if (!resolved) continue;
+      const exportedProgram = parseSync(resolved, sources[resolved]).program;
+      const exports = exportedProgram.body;
+      const mutated = [...syntaxNodes(exportedProgram)].some((entry) => (entry.type === "AssignmentExpression" && patternNames(entry.left).includes(imported))
+        || (entry.type === "UpdateExpression" && patternNames(entry.argument).includes(imported)));
+      if (mutated) continue;
+      if (exports.some((entry) => entry.type === "ExportNamedDeclaration" && ((entry.declaration?.type === "FunctionDeclaration" && entry.declaration.id?.name === imported)
+        || (entry.declaration?.type === "VariableDeclaration" && entry.declaration.declarations.some((item) => item.id.type === "Identifier" && item.id.name === imported && callable(item.init)))))) verified.add(name);
+    }
+    // These two existing registries return locally declared, scanned function components.
+    if (declaration.type === "VariableDeclarator" && declaration.init?.type === "CallExpression" && declaration.init.callee.type === "Identifier") {
+      const factory = declaration.init.callee.name;
+      const expected = path === "./features/cards/StructuredCard.tsx" && name === "Renderer" ? ["registeredCardRenderer", "./card-registry"]
+        : path === "./features/canvas/CanvasPanel.tsx" && name === "View" ? ["registeredCanvasView", "./canvas-registry"] : undefined;
+      const factoryDeclarations = bindings.get(factory);
+      const imported = factoryDeclarations?.length === 1 ? factoryDeclarations[0] : undefined;
+      const owner = imported && parents.get(imported);
+      if (expected && factory === expected[0] && imported?.type === "ImportSpecifier" && imported.imported.type === "Identifier"
+        && imported.imported.name === factory && owner?.type === "ImportDeclaration" && owner.source.value === expected[1]) {
+        const resolved = resolveScannedImport(path, expected[1], sources);
+        if (resolved && matchesReviewedDynamicSource(resolved, sources[resolved])) verified.add(name);
+      }
+    }
+  }
+  return verified;
+}
+
+function jsxOpeningTags(source: string, program: ESTree.Program | undefined): { name: string; attributes: string; names: string[]; spreads: string[]; node: ESTree.JSXOpeningElement }[] {
+  const tags: { name: string; attributes: string; names: string[]; spreads: string[]; node: ESTree.JSXOpeningElement }[] = [];
+  for (const node of syntaxNodes(program)) {
+    if (node.type === "JSXOpeningElement") {
+      tags.push({
+        name: source.slice(node.name.start, node.name.end),
+        attributes: node.attributes.map((attribute) => source.slice(attribute.start, attribute.end)).join(" "),
+        names: node.attributes.filter((attribute) => attribute.type === "JSXAttribute").map((attribute) => source.slice(attribute.name.start, attribute.name.end)),
+        spreads: node.attributes.filter((attribute) => attribute.type === "JSXSpreadAttribute").map((attribute) => source.slice(attribute.start, attribute.end)),
+        node,
+      });
+    }
+  }
+  return tags;
+}
+
+function htmlOpeningTags(source: string): { name: string; attributes: string }[] {
   const tags: { name: string; attributes: string }[] = [];
   for (const match of source.matchAll(/<\s*([A-Za-z][\w$.:-]*)\s+/g)) {
     const start = match.index + match[0].length;
@@ -74,7 +270,7 @@ function jsxOpeningTags(source: string): { name: string; attributes: string }[] 
       } else if (braces > 0 && source.startsWith("//", index)) {
         const close = source.indexOf("\n", index + 2);
         index = close === -1 ? source.length : close;
-      } else if (braces > 0 && character === "/") {
+      } else if (braces > 0 && character === "/" && source[index + 1] !== ">" && source[index - 1] !== "<") {
         // Conservatively consume regex literals; ambiguous division retains the remaining source below.
         let inClass = false;
         index += 1;
@@ -126,7 +322,7 @@ function inspectHtmlSource(path: string, source: string): string[] {
   for (const match of body.matchAll(/<\s*([a-z][\w:-]*)\b/gi)) {
     if (!allowedElements.has(match[1].toLowerCase())) violations.push("unregistered HTML element");
   }
-  for (const tag of jsxOpeningTags(body)) {
+  for (const tag of htmlOpeningTags(body)) {
     for (const match of tag.attributes.matchAll(/([a-z][\w:-]*)(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?/gi)) {
       if (!allowedAttributes.has(match[1].toLowerCase())) violations.push("unregistered HTML attribute");
     }
@@ -134,9 +330,49 @@ function inspectHtmlSource(path: string, source: string): string[] {
   return violations;
 }
 
-function inspectNetworkSource(path: string, source: string) {
+function inspectNetworkSource(path: string, source: string, sources: Readonly<Record<string, string>> = productSources) {
   const inspectedSource = normalizeEscapedIdentifiers(source);
   const violations: string[] = inspectStylesheetSource(inspectedSource);
+  const syntax = path.endsWith(".html") ? undefined : parseSync(path, source);
+  if (syntax?.errors.length) violations.push("unparseable browser script");
+  const nodes = [...syntaxNodes(syntax?.program)];
+  const parents = syntaxParents(nodes);
+  const reviewedDynamicSource = matchesReviewedDynamicSource(path, source);
+  for (const node of nodes) {
+    if (node.type === "Property" && node.computed && !reviewedDynamicSource) {
+      const key = staticKey(node.key);
+      if (key === undefined || (typeof key === "string" && dangerousMembers.has(key))) violations.push("unregistered computed binding or property");
+    }
+    if (node.type === "ImportDeclaration" || node.type === "ExportNamedDeclaration" || node.type === "ExportAllDeclaration") {
+      const specifier = node.source?.value;
+      if (typeof specifier === "string" && specifier.startsWith(".") && !resolveScannedImport(path, specifier, sources)) violations.push("import outside scanned production source");
+    }
+    if (node.type === "ImportExpression") violations.push("dynamic browser import");
+    if (node.type === "MetaProperty" && node.meta.name === "import"
+      && !(path === "./App.tsx" && /^import\.meta\.env\.DEV\b/.test(source.slice(node.start)))) {
+      violations.push("unregistered import.meta access");
+    }
+    if (node.type === "Identifier" && node.name === "require") violations.push("uninspected require reference");
+    if (node.type === "Identifier" && /^(?:localStorage|sessionStorage|indexedDB|serviceWorker|alert|prompt|confirm|CSSStyleSheet)$/.test(node.name)) violations.push("unregistered storage or native surface");
+    if (node.type === "ThrowStatement" && !(path === transportPath && reviewedDynamicSource)
+      && !(path === "./main.tsx" && source.slice(node.start, node.end) === 'throw new Error("Workspace root is unavailable.");')) violations.push("unregistered thrown value");
+    if (node.type === "Identifier" && /^(?:crypto|performance|Date|setInterval)$/.test(node.name)) violations.push("unregistered nondeterministic API");
+    if (node.type === "Identifier" && /^(?:__TAURI__|__TAURI_INTERNALS__|chrome|electron|external|webkit|ReactNativeWebView|Windows|console|reportError|postMessage|WebAssembly|cookieStore|caches|showOpenFilePicker|showSaveFilePicker|showDirectoryPicker|CSS|AudioContext|OfflineAudioContext|Notification)$/.test(node.name)) violations.push("unregistered native or logging API");
+    if (node.type === "MemberExpression") {
+      const key = node.computed ? staticKey(node.property) : node.property.type === "Identifier" ? node.property.name : undefined;
+      if (typeof key === "string" && domMembers.has(key)) violations.push("disallowed browser egress: uninspected DOM mutation");
+      if (key === "nativeEvent" || key === "view" || key === "postMessage") violations.push("derived browser or messaging access");
+      if (typeof key === "string" && /^(?:getRootNode|parentNode|parentElement|ownerDocument|defaultView|contentWindow|contentDocument|write|writeln|execCommand|createNodeIterator|createTreeWalker|setInterval)$/.test(key)) violations.push("derived document mutation or traversal");
+      if (typeof key === "string" && /^(?:animate|getAnimations|setKeyframes|sheet|styleSheets|adoptedStyleSheets|insertRule|deleteRule|replaceSync|attributeStyleMap|computedStyleMap|setProperty|reject)$/.test(key)) violations.push("unregistered style or rejection API");
+      if (typeof key === "string" && /^(?:attributes|getAttributeNode|getAttributeNodeNS|getNamedItem|getNamedItemNS|nodeValue|textContent|innerText|appendData|replaceData|insertData|deleteData)$/.test(key)
+        && !(key === "textContent" && reviewedDynamicSource && !mutationOrCall(node, parents))) violations.push("unregistered attribute or text mutation API");
+      if (node.computed) {
+        if (mutationOrCall(node, parents)) violations.push("computed mutation or call");
+        if (key === undefined && !(reviewedDynamicSource && computedDataReads[path]?.includes(source.slice(node.start, node.end)))) violations.push("unregistered computed property");
+        if (typeof key === "string" && dangerousMembers.has(key)) violations.push("computed protected member");
+      }
+    }
+  }
   const importTrivia = String.raw`(?:\s|/\*[\s\S]*?\*/|//[^\r\n]*(?:\r?\n|$))*`;
   const opaqueImport = new RegExp("\\bimport" + importTrivia + "(?:\\*|[\\w$]+(?=" + importTrivia + "(?:,|from\\b)))");
   const namespaceExport = new RegExp("\\bexport" + importTrivia + "\\*");
@@ -239,15 +475,26 @@ function inspectNetworkSource(path: string, source: string) {
   }
   const fixedIconProps = path === "./App.tsx" && inspectedSource.includes(approvedIconProps)
     && !/\bcommon\b/.test(inspectedSource.replace(approvedIconProps, "").replaceAll("{...common}", ""));
-  for (const tag of jsxOpeningTags(inspectedSource)) {
-    if (/\bonSubmit\s*=/.test(tag.attributes) && !submitComponents[path]?.includes(tag.name)) {
+  const components = componentBindings(path, nodes, sources);
+  for (const tag of jsxOpeningTags(source, syntax?.program)) {
+    if (/^[a-z]/.test(tag.name) && !intrinsicElements.has(tag.name)) violations.push("unregistered intrinsic JSX element");
+    if ((tag.node.name.type !== "JSXIdentifier" || !/^[a-z]/.test(tag.name)) && !components.has(tag.name)) violations.push("unverified JSX component binding");
+    if (tag.names.includes("onSubmit") && !submitComponents[path]?.includes(tag.name)) {
       violations.push("disallowed browser egress: unregistered submit callback");
     }
-    if (/\b(?:action|data)\s*=/.test(tag.attributes)) violations.push("disallowed browser egress: resource JSX prop");
+    if (tag.names.some((name) => ["src", "srcSet", "href", "xlinkHref", "poster", "srcDoc", "formAction", "action", "data", "form", "style", "httpEquiv"].includes(name))) violations.push("disallowed browser egress: resource JSX prop");
+    if (tag.name === "button" || tag.name === "input") {
+      const types = tag.node.attributes.filter((attribute) => attribute.type === "JSXAttribute" && attribute.name.type === "JSXIdentifier" && attribute.name.name === "type");
+      const type = types.length === 1 && types[0].type === "JSXAttribute" && types[0].value?.type === "Literal" ? types[0].value.value : undefined;
+      if (type !== (tag.name === "button" ? "button" : "search")) violations.push("unregistered input or submission type");
+    }
+    for (const attribute of tag.node.attributes) {
+      if (attribute.type === "JSXAttribute" && attribute.name.type === "JSXIdentifier" && attribute.name.name === "type" && attribute.value?.type === "Literal" && ["submit", "image", "file"].includes(String(attribute.value.value))) violations.push("unregistered input or submission type");
+    }
     // Preserve only the existing literal icon props, with no other reference that could mutate or shadow them.
-    const attributes = fixedIconProps && /^(?:path|rect|circle)$/.test(tag.name)
-      ? tag.attributes.replaceAll("{...common}", "") : tag.attributes;
-    if (/\{\s*\.\.\./.test(attributes)) {
+    const spreads = fixedIconProps && /^(?:path|rect|circle)$/.test(tag.name)
+      ? tag.spreads.filter((spread) => spread !== "{...common}") : tag.spreads;
+    if (spreads.length) {
       violations.push("disallowed browser egress: uninspected JSX spread");
     }
   }
@@ -257,6 +504,105 @@ function inspectNetworkSource(path: string, source: string) {
 describe("browser-source boundary", () => {
   const productionSources = Object.entries(productSources).filter(([path]) => isProductionSourcePath(path));
   const sourceText = productionSources.filter(([path]) => scriptFileSuffix.test(path)).map(([, content]) => content).join("\n");
+
+  it.each([
+    'const Tag = "form"; <Tag />;',
+    'const ActivityTimeline = "form"; <ActivityTimeline onSubmit={handler} />;',
+    'import { ActivityTimeline } from "./features/timeline/ActivityTimeline"; function Panel(ActivityTimeline) { return <ActivityTimeline />; }',
+    'function Tag() { return null; } Tag = "form"; <Tag />;',
+    'const Tag = unknownTag; <Tag />;',
+    '<components.Tag />;',
+  ])("rejects unverified or shadowed JSX bindings: %s", (source) => {
+    expect(inspectNetworkSource("./App.tsx", source).violations).toContain("unverified JSX component binding");
+  });
+
+  it("verifies imported components against scanned function exports", () => {
+    const source = 'import { Tag } from "./tag"; <Tag />;';
+    expect(inspectNetworkSource("./Component.tsx", source, { "./tag.tsx": 'export const Tag = "form";' }).violations).toContain("unverified JSX component binding");
+    expect(inspectNetworkSource("./Component.tsx", source, { "./tag.tsx": "export function Tag() { return null; }" }).violations).toEqual([]);
+    expect(inspectNetworkSource("./Component.tsx", source, { "./tag.tsx": 'export function Tag() { return null; } Tag = "form" as unknown as typeof Tag;' }).violations).toContain("unverified JSX component binding");
+  });
+
+  it("binds data and registry exceptions to the complete reviewed source", () => {
+    for (const [path] of Object.entries(reviewedDynamicSources)) expect(matchesReviewedDynamicSource(path, productSources[path]), path).toBe(true);
+    const alias = 'const expected = async () => {}; const index = String.fromCharCode(99,111,110,115,116,114,117,99,116,111,114); const build = expected[index]; build("return 1")();';
+    expect(inspectNetworkSource(transportPath, alias).violations).toContain("unregistered computed property");
+    expect(inspectNetworkSource(transportPath, productSources[transportPath] + alias).violations).toContain("unregistered computed property");
+    const renderer = 'import { registeredCardRenderer } from "./card-registry"; const Renderer = registeredCardRenderer(card); <Renderer onSubmit={handler} />;';
+    const sources = { "./features/cards/card-registry.tsx": 'export function registeredCardRenderer() { return "form" as unknown as ComponentType; }' };
+    expect(inspectNetworkSource("./features/cards/StructuredCard.tsx", renderer, sources).violations).toContain("unverified JSX component binding");
+  });
+
+  it.each(["./missing", "./payload.json", "./hidden.test.ts", "./test/setup.ts", "./styles.css?inline"])("rejects imports not covered by the production scan: %s", (specifier) => {
+    expect(inspectNetworkSource("./Component.tsx", 'im' + 'port "' + specifier + '";').violations).toContain("import outside scanned production source");
+  });
+
+  it("resolves a hidden module only when the scan contains it", () => {
+    const sources = { "./.hidden/runtime.ts": "export const value = 1;" };
+    expect(resolveScannedImport("./Component.tsx", "./.hidden/runtime", sources)).toBe("./.hidden/runtime.ts");
+    expect(resolveScannedImport("./Component.tsx", "./.hidden/runtime", {})).toBeUndefined();
+  });
+
+  it.each([
+    'ref.current[`inner${"HTML"}`] = markup;',
+    'ref.current[("innerHTML" as const)] = markup;',
+    'const key = "innerHTML"; const values = [ref.current[key]];',
+    'const key = "innerHTML"; const values = { value: ref.current[key] };',
+    'ref.current.setAttributeNode(attribute);',
+    'ref.current.attributes.setNamedItem(attribute);',
+    'range.insertNode(element);',
+    'ref.current.before(element);',
+    'external.invoke(payload);',
+    '__TAURI_INTERNALS__.invoke(payload);',
+    'console.log(payload);',
+    'reportError(payload);',
+    'WebAssembly.instantiate(bytes, imports);',
+    'cookieStore.set({name: "x", value: "y"});',
+    'caches.match("/sensitive");',
+    'showOpenFilePicker();',
+    'showSaveFilePicker();',
+    'showDirectoryPicker();',
+    'CSS.paintWorklet.addModule("/api/mvp/other");',
+    'AudioContext.prototype.audioWorklet;',
+    'Notification.requestPermission();',
+    'window.addEventListener("message", event => event.source?.postMessage(payload));',
+    '<div nativeEvent={event.nativeEvent} />;',
+    '<form><button>Send</button></form>;',
+    '<script async />;',
+    '<input type="image" />;',
+    '<input type="file" />;',
+    '<button>Send</button>;',
+    '<button type={kind} />;',
+    '<input type={kind} />;',
+    'const platformCrypto = crypto; platformCrypto.getRandomValues(new Uint8Array(1));',
+    'performance.now();',
+    'Date.parse(value);',
+    'function Demo() { return <button type="button" onClick={event => event.currentTarget.getRootNode().write(String.fromCharCode(60,105,109,103,32,115,114,99,61,120,62))} />; }',
+    'ref.current.getRootNode().writeln(markup);',
+    'ref.current.getRootNode().execCommand("insertHTML", false, markup);',
+    'ref.current.createNodeIterator(root).nextNode();',
+    'function Demo() { return <button type="button" onClick={event => { let node: Node = event.currentTarget; while (node.parentNode) node = node.parentNode; const view = (node as any)["default" + "View"]; view.setInterval(String.fromCharCode(97,108,101,114,116,40,49,41), 0); }} />; }',
+    'const fn = async () => {}; const key = String.fromCharCode(99,111,110,115,116,114,117,99,116,111,114); const { [key]: build } = fn; build("return 1")();',
+    'const node = document.getElementById("root"); node?.animate([{ backgroundImage: String.fromCharCode(117,114,108,40,47,111,117,116,115,105,100,101,41) }], { duration: 1 });',
+    'document.querySelectorAll(String.fromCharCode(115,116,121,108,101))[0]?.sheet?.insertRule(String.fromCharCode(1,2,3));',
+    'ref.current.attributeStyleMap.set(name, value);',
+    'throw new Error(privateValue);',
+    'Promise.reject(privateValue);',
+    'localStorage.setItem("data", value);',
+    'sessionStorage.setItem("data", value);',
+    'alert(value);',
+    'prompt(value);',
+    'const link = document.querySelectorAll(String.fromCharCode(108,105,110,107))[0]; const attribute = link?.getAttributeNode(String.fromCharCode(104,114,101,102)); if (attribute) attribute.value = String.fromCharCode(47,97,116,116,114,45,108,105,110,107);',
+    'ref.current.attributes.getNamedItem(key).value = target;',
+    'ref.current.textContent = css;',
+    'ref.current.firstChild.nodeValue = css;',
+    'const schedule = setInterval; schedule(String.fromCharCode(97,108,101,114,116,40,49,41), 0);',
+    '<div src /* hidden attribute */ = {target} />;',
+    '<div {... /* hidden spread */ props} />;',
+    'import.meta.env.DEVIL;',
+  ])("rejects syntax-aware alternate egress paths: %s", (source) => {
+    expect(inspectNetworkSource("./App.tsx", source).violations.length).toBeGreaterThan(0);
+  });
 
   it("includes an embedded test token helper in production scans", () => {
     const path = "./capabilities/tickets/ticket.test.helpers.ts";
@@ -406,7 +752,7 @@ describe("browser-source boundary", () => {
   });
 
   it("retains only the existing synthetic hook submit callback binding", () => {
-    const source = `const ticketRuntime = useSyntheticTicketRuntime(initialTicket, scenario, runtime.selectedThreadId ?? "no-thread"); ${approvedSyntheticSubmitProps} />`;
+    const source = `import { SyntheticTicketExperience } from "./capabilities/tickets/SyntheticTicketExperience"; const ticketRuntime = useSyntheticTicketRuntime(initialTicket, scenario, runtime.selectedThreadId ?? "no-thread"); ${approvedSyntheticSubmitProps} />`;
     expect(inspectNetworkSource("./App.tsx", source).violations).toEqual([]);
     expect(inspectNetworkSource("./Other.tsx", source).violations.length).toBeGreaterThan(0);
     expect(inspectNetworkSource("./App.tsx", source + " ticketRuntime.submit.call(ticketRuntime);").violations.length).toBeGreaterThan(0);
@@ -417,6 +763,28 @@ describe("browser-source boundary", () => {
   it.each(["Tag", "form", "div"])("rejects a submit callback on unregistered %s", (tag) => {
     const source = `const ticketRuntime = useSyntheticTicketRuntime(initialTicket, scenario, runtime.selectedThreadId ?? "no-thread"); const { submit: handler } = ticketRuntime; const Tag = "form"; <${tag} onSubmit={handler} />`;
     expect(inspectNetworkSource("./App.tsx", source).violations).toContain("disallowed browser egress: unregistered submit callback");
+  });
+
+  it("keeps nested JSX attributes separate from later sibling callbacks", () => {
+    const source = 'function SpaceList() { return null; } function Glyph() { return null; } function ActivityTimeline() { return null; } <><SpaceList renderIcon={() => <Glyph />} /><ActivityTimeline onSubmit={handler} /></>';
+    expect(inspectNetworkSource("./App.tsx", source).violations).toEqual([]);
+    expect(inspectNetworkSource("./App.tsx", source.replace("<ActivityTimeline", "<Tag")).violations).toContain("disallowed browser egress: unregistered submit callback");
+  });
+
+  it.each([
+    'const view = <div title={index < limit ? "before" : "after"} />;',
+    'type Handler = (value: ReturnType<typeof factory>) => void; const view = <div />;',
+    'const view = <div render={() => <span>nested text</span>} />;',
+  ])("parses JSX independently of TypeScript and expression syntax: %s", (source) => {
+    expect(inspectNetworkSource("./Component.tsx", source).violations).toEqual([]);
+  });
+
+  it.each([
+    'const modules = import.meta.glob("./*.test.js", { eager: true });',
+    'const meta = import.meta; meta.glob(pattern);',
+    'const run = require; run("./side-effect.test.js");',
+  ])("rejects alternate module-loading mechanisms: %s", (source) => {
+    expect(inspectNetworkSource("./Component.tsx", source).violations.length).toBeGreaterThan(0);
   });
 
   it.each([
@@ -672,7 +1040,7 @@ describe("browser-source boundary", () => {
   it.each([
     "const errors = new WeakSet<object>();",
     "<div className={className} />;",
-    "<TicketCard title={title} />;",
+    "function TicketCard() { return null; } <TicketCard title={title} />;",
   ])("retains non-resource syntax: %s", (source) => {
     expect(inspectNetworkSource("./Component.tsx", source).violations).toEqual([]);
   });
