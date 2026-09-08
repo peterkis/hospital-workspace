@@ -22,6 +22,7 @@ const explicitTestSetupPath = "./test/setup.ts";
 const scriptFileSuffix = /\.(?:[cm]?[jt]s|[jt]sx)$/;
 const actualTestFileSuffix = /\.(?:test|spec)\.(?:[cm]?[jt]s|[jt]sx)$/;
 const approvedIconProps = 'const common = { fill: "none", stroke: "currentColor", strokeLinecap: "round" as const, strokeLinejoin: "round" as const, strokeWidth: 1.8 };';
+const approvedSyntheticSubmitProps = "<SyntheticTicketExperience currentReceipt={ticketRuntime.currentReceipt} onClearReceipt={ticketRuntime.clearReceipt} onPersonaChange={ticketRuntime.setPersona} onSubmit={ticketRuntime.submit}";
 
 function isProductionSourcePath(path: string): boolean {
   const normalizedPath = path.replaceAll("\\", "/");
@@ -225,7 +226,7 @@ function inspectNetworkSource(path: string, source: string) {
   }
   const syntheticSubmitBinding = 'const ticketRuntime = useSyntheticTicketRuntime(initialTicket, scenario, runtime.selectedThreadId ?? "no-thread");';
   const formSource = path === "./App.tsx" && inspectedSource.includes(syntheticSubmitBinding)
-    ? inspectedSource.replace("onSubmit={ticketRuntime.submit}", "") : inspectedSource;
+    ? inspectedSource.replace(approvedSyntheticSubmitProps, "") : inspectedSource;
   if (/(?:\.\s*(?:requestSubmit|submit)\b|\[\s*["'`](?:requestSubmit|submit)["'`]\s*\])/.test(formSource)) {
     violations.push("disallowed browser egress: indirect form submission");
   }
@@ -395,10 +396,12 @@ describe("browser-source boundary", () => {
   });
 
   it("retains only the existing synthetic hook submit callback binding", () => {
-    const source = 'const ticketRuntime = useSyntheticTicketRuntime(initialTicket, scenario, runtime.selectedThreadId ?? "no-thread"); <SyntheticTicketExperience onSubmit={ticketRuntime.submit} />';
+    const source = `const ticketRuntime = useSyntheticTicketRuntime(initialTicket, scenario, runtime.selectedThreadId ?? "no-thread"); ${approvedSyntheticSubmitProps} />`;
     expect(inspectNetworkSource("./App.tsx", source).violations).toEqual([]);
     expect(inspectNetworkSource("./Other.tsx", source).violations.length).toBeGreaterThan(0);
     expect(inspectNetworkSource("./App.tsx", source + " ticketRuntime.submit.call(ticketRuntime);").violations.length).toBeGreaterThan(0);
+    expect(inspectNetworkSource("./App.tsx", source.replace("<SyntheticTicketExperience", "<Tag")).violations).toContain("disallowed browser egress: indirect form submission");
+    expect(inspectNetworkSource("./App.tsx", source.replace("<SyntheticTicketExperience", "<form")).violations).toContain("disallowed browser egress: indirect form submission");
   });
 
   it.each([
