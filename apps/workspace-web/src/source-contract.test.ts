@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseSync, type ESTree } from "vite";
 
-const productSources = import.meta.glob<string>(["./**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}", "./**/*.css", "./**/*.html", "../index.html"], {
+const productSources = import.meta.glob<string>(["./**/*.{ts,tsx,mts,cts,js,jsx,mjs,cjs}", "./**/*.css", "../**/*.html", "!../node_modules/**"], {
   exhaustive: true,
   eager: true,
   import: "default",
@@ -943,6 +943,17 @@ describe("browser-source boundary", () => {
   it("scans the actual HTML entry with only its fixed module script", () => {
     expect(productSources["../index.html"]).toContain(moduleEntry);
     expect(inspectHtmlSource("../index.html", productSources["../index.html"])).toEqual([]);
+  });
+
+  it("includes every app-root HTML file in the production boundary scan", () => {
+    for (const path of Object.keys(formatSources).filter((path) => path.endsWith(".html"))) {
+      expect(productSources, path).toHaveProperty(path);
+    }
+  });
+
+  it.each(["../other.html", "../nested/other.html", "../.hidden.html"])("rejects scripts and resource requests in another HTML entry: %s", (path) => {
+    expect(inspectHtmlSource(path, moduleEntry).length).toBeGreaterThan(0);
+    expect(inspectHtmlSource(path, '<img src="/api/mvp/other">').length).toBeGreaterThan(0);
   });
 
   it.each([
