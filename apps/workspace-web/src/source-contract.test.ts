@@ -38,8 +38,11 @@ function normalizeEscapedIdentifiers(source: string): string {
     .replace(/\\u\{([0-9a-f]{1,6})\}/gi, decode)
     .replace(/\\u([0-9a-f]{4})/gi, decode)
     .replace(/\\x([0-9a-f]{2})/gi, decode);
+  const trivia = String.raw`(?:\s|/\*[\s\S]*?\*/|//[^\r\n]*(?:\r?\n|$))*`;
+  const between = trivia + "(?:\\)" + trivia + ")*\\+" + trivia + "(?:\\(" + trivia + ")*";
+  const literalJoin = new RegExp("([\"'`])((?:(?!\\1)[^\\\\\\r\\n$])*)\\1" + between + "([\"'`])((?:(?!\\3)[^\\\\\\r\\n$])*)\\3", "g");
   while (true) {
-    const folded = normalized.replace(/(["'`])([^"'`\\\r\n$]*)\1\s*\+\s*(["'`])([^"'`\\\r\n$]*)\3/g, (_match, quote: string, left: string, _rightQuote: string, right: string) => `${quote}${left}${right}${quote}`);
+    const folded = normalized.replace(literalJoin, (_match, quote: string, left: string, _rightQuote: string, right: string) => `${quote}${left}${right}${quote}`);
     if (folded === normalized) return normalized;
     normalized = folded;
   }
@@ -365,6 +368,17 @@ describe("browser-source boundary", () => {
 
   it("keeps presentation in scanned stylesheets", () => {
     expect(inspectNetworkSource("./Component.tsx", 'import "./styles.css"; <div className="card" />;').violations).toEqual([]);
+  });
+
+  it.each([
+    'const html = "<im"/*x*/+"g s"/*x*/+"rc=/api/mvp/other>"; ref["inner"/*x*/+"HTML"] = html;',
+    'ref[("outer") + ("HTML")] = markup;',
+    'ref[(("inner")) /* split */ + (("HTML"))] = markup;',
+    'ref["insertAdjacent" // split\n + "HTML"]("beforeend", markup);',
+    'ref["set" + /* split */ "Attribute"](name, value);',
+    'ref[`outer` /* split */ + `HTML`] = markup;',
+  ])("normalizes computed sinks across comments and parentheses: %s", (source) => {
+    expect(inspectNetworkSource("./Resource.tsx", source).violations).toContain("disallowed browser egress: uninspected DOM mutation");
   });
 
   it.each([
