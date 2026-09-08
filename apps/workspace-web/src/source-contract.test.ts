@@ -193,6 +193,7 @@ function inspectNetworkSource(path: string, source: string) {
     }
   }
   const browserEgressPatterns: readonly [RegExp, string][] = [
+    [/\b(?:Function|AsyncFunction|GeneratorFunction|AsyncGeneratorFunction|eval|constructor|__proto__|Reflect)\b/g, "dynamic code"],
     // Product DOM creation and mutation stays with React; raw markup/attribute sinks bypass source inspection.
     [/\b(?:innerHTML|outerHTML|insertAdjacentHTML|setHTML|setHTMLUnsafe|parseHTML|parseHTMLUnsafe|createContextualFragment|DOMParser|setAttribute|setAttributeNS|appendChild|append|prepend|replaceChildren|replaceWith|insertBefore|replaceChild|insertAdjacentElement|attachShadow|cloneNode)\b/g, "uninspected DOM mutation"],
     // Styles belong in scanned CSS files; dynamic inline CSS is not statically inspectable.
@@ -368,6 +369,23 @@ describe("browser-source boundary", () => {
 
   it("keeps presentation in scanned stylesheets", () => {
     expect(inspectNetworkSource("./Component.tsx", 'import "./styles.css"; <div className="card" />;').violations).toEqual([]);
+  });
+
+  it.each([
+    'Function(source)();',
+    'new Function(source)();',
+    'const compile = Function; compile(source)();',
+    'Function.call(null, source)();',
+    'Function.bind(null, source)()();',
+    '(0, eval)(source);',
+    'const run = eval; run(source);',
+    'handler.constructor(source)();',
+    'handler["con" /* split */ + "structor"](source)();',
+    'AsyncFunction(source)();',
+    'GeneratorFunction(source)();',
+    'AsyncGeneratorFunction(source)();',
+  ])("rejects callable and aliased dynamic code: %s", (source) => {
+    expect(inspectNetworkSource("./Resource.tsx", source).violations).toContain("disallowed browser egress: dynamic code");
   });
 
   it.each([
