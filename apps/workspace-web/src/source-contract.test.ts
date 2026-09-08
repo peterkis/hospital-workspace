@@ -316,6 +316,13 @@ function inspectHtmlSource(path: string, source: string): string[] {
   const body = path === "../index.html" ? source.replace(moduleEntry, "") : source;
   const violations = inspectNetworkSource(path, body).violations;
   if (path === "../index.html" && source.split(moduleEntry).length !== 2) violations.push("invalid module entry");
+  if (path === "../index.html") {
+    const document = new DOMParser().parseFromString(source, "text/html");
+    const scripts = document.querySelectorAll("script");
+    if (scripts.length !== 1 || scripts[0].outerHTML !== moduleEntry
+      || scripts[0].namespaceURI !== "http://www.w3.org/1999/xhtml"
+      || scripts[0].closest("template, noscript")) violations.push("inactive or invalid module entry");
+  }
   if (/<\s*script\b|\bhttp-equiv\b|\bon[a-z]+\s*=/i.test(body)) violations.push("unregistered HTML execution or navigation");
   const allowedElements = new Set(["html", "head", "meta", "title", "body", "div"]);
   const allowedAttributes = new Set(["lang", "charset", "name", "content", "id"]);
@@ -936,6 +943,17 @@ describe("browser-source boundary", () => {
   it("scans the actual HTML entry with only its fixed module script", () => {
     expect(productSources["../index.html"]).toContain(moduleEntry);
     expect(inspectHtmlSource("../index.html", productSources["../index.html"])).toEqual([]);
+  });
+
+  it.each([
+    `<!-- ${moduleEntry} -->`,
+    `<title>${moduleEntry}</title>`,
+    `<textarea>${moduleEntry}</textarea>`,
+    `<template>${moduleEntry}</template>`,
+    `<style>${moduleEntry}</style>`,
+    `<noscript>${moduleEntry}</noscript>`,
+  ])("rejects an inert module entry: %s", (source) => {
+    expect(inspectHtmlSource("../index.html", source).length).toBeGreaterThan(0);
   });
 
   it.each([
