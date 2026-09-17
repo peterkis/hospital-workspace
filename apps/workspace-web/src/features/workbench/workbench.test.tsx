@@ -94,6 +94,34 @@ describe("UI-01 workbench", () => {
     expect(screen.getByRole("button", { name: /已收藏/ }).textContent).toContain("0");
   });
 
+  it("clears the search before showing favorites", () => {
+    render(<App initialScenario="normal" />);
+    fireEvent.click(board().getByRole("button", { name: /演示协作指引整理/ }));
+    fireEvent.click(screen.getByRole("button", { name: "收藏事项" }));
+
+    const search = screen.getByRole("searchbox", { name: "搜索事项" }) as HTMLInputElement;
+    fireEvent.change(search, { target: { value: "工作站" } });
+    expect(board().getByRole("button", { name: /演示工作站无法输出文档/ })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /已收藏/ }));
+
+    expect(search.value).toBe("");
+    expect(board().getByRole("button", { name: /演示协作指引整理/ })).toBeTruthy();
+  });
+
+  it("restores focus to the menu button when favorites closes navigation", () => {
+    render(<App initialScenario="normal" />);
+    const menu = screen.getByText("打开导航", { selector: "button" });
+    fireEvent.click(menu);
+    const favorites = within(screen.getByRole("complementary", { name: "能力空间" })).getByRole("button", { name: /已收藏/ });
+    favorites.focus();
+
+    fireEvent.click(favorites);
+
+    expect(menu.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(menu);
+  });
+
   it("cancels a pending Ticket when returning home without settling a late transition", () => {
     vi.useFakeTimers();
     render(<App initialScenario="normal" />);

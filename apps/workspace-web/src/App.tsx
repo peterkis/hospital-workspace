@@ -49,10 +49,11 @@ export function App({ initialScenario }: { initialScenario?: WorkspaceScenario }
     canvasTriggerRef.current = trigger ?? null;
   }, [runtime.activeCanvasRoute]);
   useEffect(() => {
+    if (!threadActive) return;
     const closeOnEscape = (event: globalThis.KeyboardEvent) => { if (event.key === "Escape") runtime.activeCanvasRoute ? closeCanvas() : runtime.isPanelOpen && dispatch({ type: "toggle-panel" }); };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [closeCanvas, runtime.activeCanvasRoute, runtime.isPanelOpen]);
+  }, [closeCanvas, runtime.activeCanvasRoute, runtime.isPanelOpen, threadActive]);
 
   useEffect(() => { if (threadActive) threadHeadingRef.current?.focus(); }, [threadActive, runtime.selectedThreadId]);
 

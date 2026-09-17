@@ -98,6 +98,19 @@ describe("MVP-02 workspace composition", () => {
     expect(document.activeElement).toBe(detail);
   });
 
+  it("keeps the Context panel open after Escape is pressed on the workbench home", () => {
+    render(<App initialScenario="normal" />);
+    const search = screen.getByRole("searchbox", { name: "搜索事项" });
+    expect(screen.queryByRole("complementary", { name: "Context 与 Canvas" })).toBeNull();
+    search.focus();
+    fireEvent.keyDown(search, { key: "Escape" });
+
+    enterItem("本周协作事项整理");
+
+    expect(screen.getByRole("complementary", { name: "Context 与 Canvas" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "关闭 Context 与 Canvas 面板" }).getAttribute("aria-expanded")).toBe("true");
+  });
+
   it("restores focus after a Context trigger is unmounted and remounted", () => {
     renderScenario();
     const contextTrigger = screen.getByRole("button", { name: "查看工作项详情" });
