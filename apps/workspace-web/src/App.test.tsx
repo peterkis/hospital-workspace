@@ -4,15 +4,27 @@ import { App } from "./App";
 import { SYNTHETIC_RECEIPT_DELAY_MS } from "./features/cards/card-runtime";
 import { WORKSPACE_SCENARIOS, type WorkspaceScenario } from "./fixtures/workspace-fixtures";
 
-function renderScenario(scenario: WorkspaceScenario = "normal") { return render(<App initialScenario={scenario} key={scenario} />); }
+function enterItem(title: string) {
+  fireEvent.click(screen.getByRole("button", { name: new RegExp(title) }));
+  const discussion = screen.queryByRole("button", { name: "进入既有讨论与时间线" });
+  if (discussion) fireEvent.click(discussion);
+}
+function renderScenario(scenario: WorkspaceScenario = "normal") {
+  const result = render(<App initialScenario={scenario} key={scenario} />);
+  if (scenario === "normal") enterItem("本周协作事项整理");
+  return result;
+}
+function switchSpace(label: string, title: string) {
+  fireEvent.click(within(screen.getByRole("complementary", { name: "能力空间" })).getByRole("button", { name: new RegExp(label) }));
+  enterItem(title);
+}
 afterEach(() => vi.useRealTimers());
 
 describe("MVP-02 workspace composition", () => {
   it("runs the complete local Ticket lifecycle across both presentation personas", () => {
     vi.useFakeTimers();
     renderScenario();
-    const spaces = within(screen.getByRole("complementary", { name: "能力空间" }));
-    fireEvent.click(spaces.getByRole("button", { name: /IT Support/ }));
+    switchSpace("信息支持", "演示工作站无法输出文档");
     const actions = ["提交本地合成报修", "分诊本地合成报修", "接入演示工程师", "接受演示分派", "开始本地合成处理", "标记演示解决", "确认本地合成关闭", "重新打开本地合成展示"];
     fireEvent.click(screen.getByRole("button", { name: actions[0] }));
     act(() => vi.advanceTimersByTime(SYNTHETIC_RECEIPT_DELAY_MS));
@@ -32,18 +44,16 @@ describe("MVP-02 workspace composition", () => {
     expect(screen.getByRole("main")).toBeTruthy();
     expect(screen.getByRole("complementary", { name: "Context 与 Canvas" })).toBeTruthy();
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
-    const spaces = within(screen.getByRole("complementary", { name: "能力空间" }));
-    for (const space of ["My Work", "IT Support", "Fee Confirmation", "Agent Collaboration", "Knowledge Work"]) expect(spaces.getByRole("button", { name: new RegExp(space) })).toBeTruthy();
+    for (const space of ["协作事项", "信息支持", "费用确认", "Agent 协作", "知识工作"]) expect(within(screen.getByRole("complementary", { name: "能力空间" })).getByRole("button", { name: new RegExp(space) })).toBeTruthy();
   });
 
   it("selects a space's first thread and a selected thread changes the visible timeline", () => {
     renderScenario();
-    const spaces = within(screen.getByRole("complementary", { name: "能力空间" }));
-    fireEvent.click(spaces.getByRole("button", { name: /IT Support/ }));
+    switchSpace("信息支持", "演示工作站无法输出文档");
     expect(screen.getAllByRole("heading", { name: "演示工作站无法输出文档" }).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole("button", { name: /共享工作台准备/ }));
     expect(screen.getByRole("heading", { name: "共享工作台准备" })).toBeTruthy();
-    fireEvent.click(spaces.getByRole("button", { name: /My Work/ }));
+    switchSpace("协作事项", "本周协作事项整理");
     fireEvent.click(screen.getByRole("button", { name: /交接前的背景核对/ }));
     expect(screen.getAllByText("需要确认协作优先级")).toHaveLength(2);
     expect(screen.getByText(/人类判断仍然是权威/)).toBeTruthy();
@@ -137,22 +147,20 @@ describe("MVP-02 workspace composition", () => {
 
   it("renders all timeline variants with visible public-synthetic provenance", () => {
     renderScenario();
-    const spaces = within(screen.getByRole("complementary", { name: "能力空间" }));
     expect(screen.getByText("协作消息")).toBeTruthy();
     expect(screen.getAllByText("状态投影").length).toBeGreaterThan(0);
     expect(screen.getByText("结构化卡片")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /交接前的背景核对/ }));
     expect(screen.getByText("人工判断")).toBeTruthy();
     expect(screen.getByText("冲突或错误")).toBeTruthy();
-    fireEvent.click(spaces.getByRole("button", { name: /Agent Collaboration/ }));
+    switchSpace("Agent 协作", "资料整理 Agent 运行");
     expect(screen.getByText("Agent 提案或更新")).toBeTruthy();
     expect(screen.getAllByText(/来源：/).length).toBeGreaterThan(0);
   });
 
   it("opens registered knowledge and unregistered Canvas routes through real buttons", () => {
     renderScenario();
-    const spaces = within(screen.getByRole("complementary", { name: "能力空间" }));
-    fireEvent.click(spaces.getByRole("button", { name: /Knowledge Work/ }));
+    switchSpace("知识工作", "知识条目结构草稿");
     fireEvent.click(screen.getByRole("button", { name: "查看知识引用" }));
     expect(screen.getByText(/未代表临床或生产知识/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "关闭 Canvas 详情" }));

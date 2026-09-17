@@ -348,6 +348,35 @@ stopConditions:
   - A high/critical canonical boundary would be bypassed or downgraded.
   - A required path, dependency, mapping, or validation fact cannot be established.
   - The human owner retires or replaces the overlay.
+supplementalIterations:
+  - id: UI-01
+    title: Page-oriented synthetic collaboration workbench
+    purpose: Evaluate a light unified sidebar and board/list/activity presentation while reusing the existing local Ticket runtime.
+    prerequisites: [MVP-01, MVP-02, MVP-03, MVP04-I01, MVP04-I02]
+    sourceCommit: cd1183b875a479c3b29c2f0751b16857180d7dde
+    sourceTree: 4874f4179a98d86c53feb508da99d9efd8397622
+    allowedPaths:
+      - docs/program/mvp/MVP-EXECUTION-OVERLAY.yaml
+      - apps/workspace-web/README.md
+      - apps/workspace-web/src/App.tsx
+      - apps/workspace-web/src/App.test.tsx
+      - apps/workspace-web/src/styles.css
+      - apps/workspace-web/src/source-contract.test.ts
+      - apps/workspace-web/src/features/workbench/WorkspaceHome.tsx
+      - apps/workspace-web/src/features/workbench/WorkspaceSidebar.tsx
+      - apps/workspace-web/src/features/workbench/WorkItemBoard.tsx
+      - apps/workspace-web/src/features/workbench/WorkItemList.tsx
+      - apps/workspace-web/src/features/workbench/WorkItemDetail.tsx
+      - apps/workspace-web/src/features/workbench/workbench-model.ts
+      - apps/workspace-web/src/features/workbench/workbench-fixtures.ts
+      - apps/workspace-web/src/features/workbench/workbench.css
+      - apps/workspace-web/src/features/workbench/workbench.test.tsx
+      - apps/workspace-web/src/capabilities/tickets/ticket-experience.test.tsx
+    stopBoundary:
+      - No I03-I06 implementation or completion; no eighth canonical slice or changed DAG, mappings, currentSlice or prior status.
+      - No backend, transport, Ticket runtime/model/fixtures/transition, shared feature runtime, dependency, workflow or native boundary changes.
+      - Ticket experience test edits only change navigation; retain domain assertions, timeouts and recovery coverage.
+      - Freeze staged tree for read-only terra_reviewer and terra_security; no commit, push, PR or committed Evidence.
 p2Maintenance:
   id: P2-F0-01
   owner: toolchain-owner

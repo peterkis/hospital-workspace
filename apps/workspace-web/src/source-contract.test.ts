@@ -34,7 +34,7 @@ const submitComponents: Readonly<Record<string, readonly string[]>> = {
   "./features/cards/StructuredCard.tsx": ["Renderer"],
 };
 const computedDataReads: Readonly<Record<string, readonly string[]>> = {
-  "./App.tsx": ["paths[name]"],
+  "./App.tsx": [],
   "./capabilities/tickets/SyntheticTicketExperience.tsx": ["SYNTHETIC_TICKET_STATUS_LABELS[status]"],
   "./capabilities/tickets/ticket-fixtures.ts": ["SYNTHETIC_TICKET_SLA_BY_STATUS[status]"],
   "./capabilities/tickets/ticket-projection.ts": ["SYNTHETIC_TICKET_STATUS_LABELS[ticket.status]", "SYNTHETIC_TICKET_STATUS_LABELS[event.priorStatus]", "SYNTHETIC_TICKET_STATUS_LABELS[event.resultingStatus]", "SYNTHETIC_TICKET_STATUS_LABELS[receipt.resultingStatus]", "SYNTHETIC_TICKET_STATUS_LABELS[receipt.priorStatus]"],
@@ -49,7 +49,7 @@ const computedDataReads: Readonly<Record<string, readonly string[]>> = {
 // These finite MVP data/registry exceptions bind the entire reviewed source, including lexical bindings.
 // A changed file must be reviewed before refreshing its digest; matching an expression's text alone is insufficient.
 const reviewedDynamicSources: Readonly<Record<string, string>> = {
-  "./App.tsx": "c0e9d23f1b2daf49b8adb83530cd6ca2006725adc368b19ad39473cfe0a08978",
+  "./App.tsx": "43ccd01a697d509bbef4bc494e528869f1f481f1785aa7e29810ada2397bf040",
   "./capabilities/tickets/SyntheticTicketExperience.tsx": "aedca0de3ee6adb2c6de7179e58a853c9d68a9e5b4735d94424c8bc6f1cd0e56",
   "./capabilities/tickets/ticket-fixtures.ts": "038226b09d5271d1a0ba3c647ab6ce780cf1ae6e763f0ba8f49eb5ce214d2b68",
   "./capabilities/tickets/ticket-projection.ts": "31571c1873b79a4999283ea28894dfb5a6b4fe6dba18fa46491ed1bb1b1479b6",

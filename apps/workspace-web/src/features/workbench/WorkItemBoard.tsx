@@ -1,0 +1,6 @@
+import { WORK_GROUPS, spaceLabel, type WorkbenchItem } from "./workbench-model";
+import type { WorkspaceSpace } from "../../fixtures/workspace-fixtures";
+
+export function WorkItemBoard({ items, spaces, onSelect }: { items: readonly WorkbenchItem[]; spaces: readonly WorkspaceSpace[]; onSelect: (item: WorkbenchItem, trigger: HTMLButtonElement) => void }) {
+  return <section aria-label="事项看板" className="wb-board">{WORK_GROUPS.map((group, index) => <section aria-label={group} className={`wb-column wb-group-${index}`} key={group}><div className="wb-column-heading"><h2>{group}</h2><span>{items.filter((item) => item.group === group).length}</span></div>{items.filter((item) => item.group === group).map((item) => <button className="wb-card" id={`wb-card-${item.id}`} key={item.id} onClick={(event) => onSelect(item, event.currentTarget)} type="button"><span className="wb-card-type">{spaceLabel(spaces.find((space) => space.id === item.spaceId)?.label ?? "合成空间")} · {item.ticket ? "工单" : "协作"}</span><strong>{item.title}</strong><span className="wb-card-description">{item.description}</span><span className="wb-card-status">{item.statusLabel}</span><span className="wb-card-person">{item.participants}</span></button>)}{!items.some((item) => item.group === group) && <p className="wb-column-empty">暂无事项</p>}</section>)}</section>;
+}
