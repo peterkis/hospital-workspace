@@ -7,6 +7,14 @@ import { ticketGroup } from "./workbench-model";
 
 afterEach(() => vi.useRealTimers());
 const board = () => within(screen.getByRole("region", { name: "事项看板" }));
+const searchEntries = ["Ctrl+K", "Cmd+K", "sidebar"] as const;
+function requestWorkbenchSearch(entry: typeof searchEntries[number]) {
+  if (entry === "sidebar") {
+    fireEvent.click(within(screen.getByRole("navigation", { name: "主要导航" })).getByRole("button", { name: /搜索事项/ }));
+  } else {
+    fireEvent.keyDown(window, { key: "k", ctrlKey: entry === "Ctrl+K", metaKey: entry === "Cmd+K" });
+  }
+}
 
 describe("UI-01 workbench", () => {
   it("starts with one light sidebar, four groups and no persistent Context panel", () => {
@@ -132,6 +140,38 @@ describe("UI-01 workbench", () => {
     expect(board().getByRole("button", { name: /演示工作站无法输出文档/ }).textContent).toContain("草稿 · v1");
     fireEvent.click(board().getByRole("button", { name: /演示工作站无法输出文档/ }));
     expect(screen.getByText("本地合成命令未被接受")).toBeTruthy();
+  });
+
+  it.each(searchEntries)("does not retain a deferred focus request after %s on home", (entry) => {
+    render(<App initialScenario="normal" />);
+    const search = screen.getByRole("searchbox", { name: "搜索事项" });
+    requestWorkbenchSearch(entry);
+    expect(document.activeElement).toBe(search);
+    requestWorkbenchSearch(entry);
+    expect(document.activeElement).toBe(search);
+
+    const trigger = board().getByRole("button", { name: /演示协作指引整理/ });
+    fireEvent.click(trigger);
+    const heading = within(screen.getByRole("region", { name: "事项详情" })).getByRole("heading", { name: "演示协作指引整理" });
+    expect(document.activeElement).toBe(heading);
+    fireEvent.keyDown(heading, { key: "Escape" });
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it.each(searchEntries)("consumes deferred %s focus after the home input remounts", (entry) => {
+    render(<App initialScenario="normal" />);
+    fireEvent.click(board().getByRole("button", { name: /本周协作事项整理/ }));
+    fireEvent.click(screen.getByRole("button", { name: "进入既有讨论与时间线" }));
+    expect(screen.queryByRole("searchbox", { name: "搜索事项" })).toBeNull();
+
+    requestWorkbenchSearch(entry);
+    expect(document.activeElement).toBe(screen.getByRole("searchbox", { name: "搜索事项" }));
+    const trigger = board().getByRole("button", { name: /演示协作指引整理/ });
+    fireEvent.click(trigger);
+    const heading = within(screen.getByRole("region", { name: "事项详情" })).getByRole("heading", { name: "演示协作指引整理" });
+    expect(document.activeElement).toBe(heading);
+    fireEvent.click(screen.getByRole("button", { name: "关闭详情" }));
+    expect(document.activeElement).toBe(trigger);
   });
 
   it("explains Agent/new entry previews and supports search shortcuts and mobile navigation", () => {
