@@ -26,6 +26,21 @@ describe("UI-01 workbench", () => {
     expect(screen.getByText("公开合成演示")).toBeTruthy();
   });
 
+  it("suppresses sidebar current-page markers while a thread is active and restores Home on return", () => {
+    render(<App initialScenario="normal" />);
+    const sidebar = screen.getByRole("complementary", { name: "能力空间" });
+    const home = within(sidebar).getByRole("button", { name: "首页" });
+    expect(home.getAttribute("aria-current")).toBe("page");
+
+    fireEvent.click(board().getByRole("button", { name: /演示工作站无法输出文档/ }));
+
+    expect(home.getAttribute("aria-current")).toBeNull();
+    expect(sidebar.querySelector('[aria-current="page"]')).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "← 返回工作台" }));
+    expect(home.getAttribute("aria-current")).toBe("page");
+  });
+
   it("shares counts, title/description search and space/person filters across views", () => {
     render(<App initialScenario="normal" />);
     const count = board().getAllByRole("button").length;
