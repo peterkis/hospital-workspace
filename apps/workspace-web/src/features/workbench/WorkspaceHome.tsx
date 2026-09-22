@@ -40,7 +40,7 @@ export function WorkspaceHome({ fixture, ticket, children, threadActive, onThrea
   const visible = favoritesOnly ? filtered.filter((item) => favoriteIds.has(item.id)) : filtered;
   const goHome = () => { setSelected(null); setNotice(""); onHome(); };
   const closeSidebar = () => { setExpanded(false); menuRef.current?.focus(); };
-  const search = () => { goHome(); setFavoritesOnly(false); setExpanded(false); focusSearch.current = true; searchRef.current?.focus(); };
+  const search = () => { goHome(); setFavoritesOnly(false); setExpanded(false); focusSearch.current = searchRef.current === null; searchRef.current?.focus(); };
   useEffect(() => {
     if (!threadActive && focusSearch.current) { searchRef.current?.focus(); focusSearch.current = false; }
     if (!threadActive && restore.current) { document.getElementById(triggerId.current)?.focus(); restore.current = false; }
@@ -48,7 +48,7 @@ export function WorkspaceHome({ fixture, ticket, children, threadActive, onThrea
   useEffect(() => { if (notice) noticeRef.current?.focus(); }, [notice]);
   useEffect(() => {
     const shortcut = (event: globalThis.KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); onHome(); setSelected(null); setNotice(""); setExpanded(false); focusSearch.current = true; searchRef.current?.focus(); }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") { event.preventDefault(); onHome(); setSelected(null); setNotice(""); setExpanded(false); focusSearch.current = searchRef.current === null; searchRef.current?.focus(); }
     };
     window.addEventListener("keydown", shortcut);
     return () => window.removeEventListener("keydown", shortcut);
