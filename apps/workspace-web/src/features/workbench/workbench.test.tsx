@@ -132,6 +132,23 @@ describe("UI-01 workbench", () => {
     expect(board().getByRole("button", { name: /演示协作指引整理/ })).toBeTruthy();
   });
 
+  it.each(["Ctrl+K", "Cmd+K"] as const)("clears favorites before %s global search", (entry) => {
+    render(<App initialScenario="normal" />);
+    const sidebar = within(screen.getByRole("complementary", { name: "能力空间" }));
+    const favorites = sidebar.getByRole("button", { name: /已收藏/ });
+    fireEvent.click(favorites);
+    expect(favorites.getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("status").textContent).toContain("没有匹配");
+
+    requestWorkbenchSearch(entry);
+
+    const search = screen.getByRole("searchbox", { name: "搜索事项" }) as HTMLInputElement;
+    expect(document.activeElement).toBe(search);
+    expect(favorites.getAttribute("aria-current")).toBeNull();
+    fireEvent.change(search, { target: { value: "工作站" } });
+    expect(board().getByRole("button", { name: /演示工作站无法输出文档/ })).toBeTruthy();
+  });
+
   it("restores focus to the menu button when favorites closes navigation", () => {
     render(<App initialScenario="normal" />);
     const menu = screen.getByText("打开导航", { selector: "button" });
