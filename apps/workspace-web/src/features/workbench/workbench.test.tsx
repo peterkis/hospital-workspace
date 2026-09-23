@@ -222,4 +222,104 @@ describe("UI-01 workbench", () => {
     fireEvent.keyDown(screen.getByRole("complementary", { name: "能力空间" }), { key: "Escape" });
     expect(document.activeElement).toBe(screen.getByText("打开导航", { selector: "button" }));
   });
+
+
+  const workbenchViews = [
+    ["看板", "事项看板"],
+    ["列表", "事项列表"],
+    ["动态", "事项动态"],
+  ] as const;
+  const closePaths = ["Escape", "button"] as const;
+  const favoriteCases = workbenchViews.flatMap(([mode, region]) => closePaths.map((close) => ({ mode, region, close })));
+  const detailRegion = () => within(screen.getByRole("region", { name: "事项详情" }));
+  function favoriteAndOpen(mode: string, region: string, title = "演示协作指引整理") {
+    fireEvent.click(screen.getByRole("button", { name: mode }));
+    const items = () => within(screen.getByRole("region", { name: region }));
+    fireEvent.click(items().getByRole("button", { name: new RegExp(title) }));
+    fireEvent.click(detailRegion().getByRole("button", { name: "收藏事项" }));
+    fireEvent.click(screen.getByRole("button", { name: /已收藏/ }));
+    const trigger = items().getByRole("button", { name: new RegExp(title) });
+    fireEvent.click(trigger);
+    return trigger;
+  }
+  function closeOpenDetail(close: string) {
+    if (close === "Escape") fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+    else fireEvent.click(detailRegion().getByRole("button", { name: "关闭详情" }));
+  }
+
+  it.each(favoriteCases)("restores focus after the open favorite disappears: $mode / $close", ({ mode, region, close }) => {
+    render(<App initialScenario="normal" />);
+    const trigger = favoriteAndOpen(mode, region);
+    const remove = detailRegion().getByRole("button", { name: "取消收藏事项" });
+    remove.focus();
+    fireEvent.click(remove);
+    expect(document.getElementById(trigger.id)).toBeNull();
+    expect(screen.getByRole("status").textContent).toContain("没有匹配");
+    expect(document.activeElement).toBe(remove);
+    expect(remove.textContent).toBe("收藏事项");
+
+    closeOpenDetail(close);
+
+    const search = screen.getByRole("searchbox", { name: "搜索事项" });
+    expect(screen.queryByRole("region", { name: "事项详情" })).toBeNull();
+    expect(document.activeElement).toBe(search);
+    // A consumed fallback must not steal focus from the next detail.
+    requestWorkbenchSearch("sidebar");
+    const next = within(screen.getByRole("region", { name: region })).getByRole("button", { name: /演示协作指引整理/ });
+    fireEvent.click(next);
+    expect(document.activeElement).toBe(detailRegion().getByRole("heading", { name: "演示协作指引整理" }));
+    closeOpenDetail(close);
+    expect(document.activeElement).toBe(next);
+  });
+
+  it.each(workbenchViews)("restores a newly mounted favorite trigger in %s", (mode, region) => {
+    render(<App initialScenario="normal" />);
+    const original = favoriteAndOpen(mode, region);
+    fireEvent.click(detailRegion().getByRole("button", { name: "取消收藏事项" }));
+    expect(original.isConnected).toBe(false);
+    fireEvent.click(detailRegion().getByRole("button", { name: "收藏事项" }));
+    const replacement = document.getElementById(original.id);
+    expect(replacement).not.toBeNull();
+    expect(replacement).not.toBe(original);
+    closeOpenDetail("button");
+    expect(document.activeElement).toBe(replacement);
+  });
+
+  it.each(workbenchViews)("uses the same missing-trigger fallback after returning from a Thread in %s", (mode, region) => {
+    render(<App initialScenario="normal" />);
+    const trigger = favoriteAndOpen(mode, region, "本周协作事项整理");
+    fireEvent.click(detailRegion().getByRole("button", { name: "取消收藏事项" }));
+    expect(document.getElementById(trigger.id)).toBeNull();
+    fireEvent.click(detailRegion().getByRole("button", { name: "进入既有讨论与时间线" }));
+    expect(screen.queryByRole("searchbox", { name: "搜索事项" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "← 返回工作台" }));
+    expect(screen.queryByRole("region", { name: "事项详情" })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("searchbox", { name: "搜索事项" }));
+  });
+
+  it("falls back when a still-connected item trigger cannot receive focus", () => {
+    render(<App initialScenario="normal" />);
+    const trigger = board().getByRole("button", { name: /演示协作指引整理/ }) as HTMLButtonElement;
+    fireEvent.click(trigger);
+    trigger.disabled = true;
+    closeOpenDetail("button");
+    expect(trigger.isConnected).toBe(true);
+    expect(document.activeElement).toBe(screen.getByRole("searchbox", { name: "搜索事项" }));
+  });
+
+  it("keeps one current sidebar page when toolbar filters are combined", () => {
+    render(<App initialScenario="normal" />);
+    const sidebar = screen.getByRole("complementary", { name: "能力空间" });
+    const current = () => sidebar.querySelectorAll('[aria-current="page"]');
+    const favorites = within(sidebar).getByRole("button", { name: /已收藏/ });
+    fireEvent.click(favorites);
+    fireEvent.change(screen.getByRole("combobox", { name: "空间过滤" }), { target: { value: "demo-space-it-support" } });
+    fireEvent.click(screen.getByRole("button", { name: "我参与的" }));
+    expect(current()).toHaveLength(1);
+    expect(current()[0]).toBe(favorites);
+    fireEvent.click(within(sidebar).getByRole("button", { name: /信息支持/ }));
+    fireEvent.click(screen.getByRole("button", { name: "我参与的" }));
+    expect(current()).toHaveLength(1);
+    expect(current()[0].textContent).toContain("信息支持");
+  });
 });
