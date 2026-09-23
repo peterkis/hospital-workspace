@@ -18,7 +18,7 @@ function switchSpace(label: string, title: string) {
   fireEvent.click(within(screen.getByRole("complementary", { name: "能力空间" })).getByRole("button", { name: new RegExp(label) }));
   enterItem(title);
 }
-afterEach(() => vi.useRealTimers());
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe("MVP-02 workspace composition", () => {
   it("runs the complete local Ticket lifecycle across both presentation personas", () => {
@@ -109,6 +109,30 @@ describe("MVP-02 workspace composition", () => {
 
     expect(screen.getByRole("complementary", { name: "Context 与 Canvas" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "关闭 Context 与 Canvas 面板" }).getAttribute("aria-expanded")).toBe("true");
+  });
+
+  it.each([
+    ["empty", "空状态"],
+    ["loading", "加载状态"],
+    ["error", "演示错误状态"],
+    ["permission-denied", "演示权限状态"],
+  ] as const)("handles thread Escape only while the normal thread is visible: %s", (exceptionalScenario, regionName) => {
+    const removed = vi.spyOn(window, "removeEventListener");
+    renderScenario();
+    removed.mockClear();
+
+    fireEvent.change(screen.getByRole("combobox", { name: "切换演示场景" }), { target: { value: exceptionalScenario } });
+
+    expect(screen.getByRole("region", { name: regionName })).toBeTruthy();
+    expect(removed).toHaveBeenCalledWith("keydown", expect.any(Function));
+    fireEvent.keyDown(window, { key: "Escape" });
+    fireEvent.change(screen.getByRole("combobox", { name: "切换演示场景" }), { target: { value: "normal" } });
+    expect(screen.getByRole("complementary", { name: "Context 与 Canvas" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "关闭 Context 与 Canvas 面板" }).getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("complementary", { name: "Context 与 Canvas" })).toBeNull();
+    expect(screen.getByRole("button", { name: "打开 Context 与 Canvas 面板" }).getAttribute("aria-expanded")).toBe("false");
   });
 
   it("restores focus after a Context trigger is unmounted and remounted", () => {

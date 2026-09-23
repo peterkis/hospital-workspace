@@ -29,6 +29,7 @@ export function App({ initialScenario }: { initialScenario?: WorkspaceScenario }
   const [scenario, setScenario] = useState<WorkspaceScenario>(initialScenario ?? scenarioFromLocation());
   const baseFixture = useMemo(() => getWorkspaceFixture(scenario), [scenario]);
   const fixture = useMemo(() => composeWorkspaceFixtureWithSyntheticTickets(baseFixture), [baseFixture]);
+  const threadVisible = threadActive && scenario === "normal";
   const [runtime, dispatch] = useReducer(workspaceRuntimeReducer, fixture, createWorkspaceRuntime);
   const onHome = useCallback(() => { setThreadActive(false); dispatch({ type: "select-thread", threadId: "" }); }, []);
   const initialTicket = useMemo(() => createInitialSyntheticTicket(), []);
@@ -49,13 +50,13 @@ export function App({ initialScenario }: { initialScenario?: WorkspaceScenario }
     canvasTriggerRef.current = trigger ?? null;
   }, [runtime.activeCanvasRoute]);
   useEffect(() => {
-    if (!threadActive) return;
+    if (!threadVisible) return;
     const closeOnEscape = (event: globalThis.KeyboardEvent) => { if (event.key === "Escape") runtime.activeCanvasRoute ? closeCanvas() : runtime.isPanelOpen && dispatch({ type: "toggle-panel" }); };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
-  }, [closeCanvas, runtime.activeCanvasRoute, runtime.isPanelOpen, threadActive]);
+  }, [closeCanvas, runtime.activeCanvasRoute, runtime.isPanelOpen, threadVisible]);
 
-  useEffect(() => { if (threadActive) threadHeadingRef.current?.focus(); }, [threadActive, runtime.selectedThreadId]);
+  useEffect(() => { if (threadVisible) threadHeadingRef.current?.focus(); }, [runtime.selectedThreadId, threadVisible]);
 
   const selectedSpace = fixture.spaces.find((space) => space.id === runtime.selectedSpaceId) ?? fixture.spaces[0];
   const visibleThreads = fixture.threads.filter((thread) => thread.parentSpaceId === runtime.selectedSpaceId);
