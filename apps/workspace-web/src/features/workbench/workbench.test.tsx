@@ -4,6 +4,42 @@ import { App } from "../../App";
 import { createInitialSyntheticTicket } from "../../capabilities/tickets/ticket-fixtures";
 import { SYNTHETIC_TICKET_RECEIPT_DELAY_MS } from "../../capabilities/tickets/ticket-runtime";
 import { ticketGroup } from "./workbench-model";
+import workbenchCss from "./workbench.css?raw";
+
+
+function cssDeclaration(selector: string, property: "color" | "background") {
+  const marker = `${selector} {`;
+  const start = workbenchCss.indexOf(marker);
+  if (start < 0) throw new Error(`Missing selector: ${selector}`);
+  const bodyStart = start + marker.length;
+  const bodyEnd = workbenchCss.indexOf("}", bodyStart);
+  const body = workbenchCss.slice(bodyStart, bodyEnd);
+  const match = body.match(new RegExp(`${property}:\s*([^;]+)`));
+  if (!match) throw new Error(`Missing ${property} in ${selector}`);
+  return match[1].trim().toLowerCase();
+}
+
+function cssRgb(color: string) {
+  const normalized = color === "white" ? "#ffffff" : color;
+  const value = normalized.length === 4
+    ? normalized.replace(/^#(.)(.)(.)$/, "#$1$1$2$2$3$3")
+    : normalized;
+  if (!/^#[0-9a-f]{6}$/.test(value)) throw new Error(`Unsupported color: ${color}`);
+  return [1, 3, 5].map((index) => Number.parseInt(value.slice(index, index + 2), 16) / 255);
+}
+
+function cssLuminance(color: string) {
+  const [red, green, blue] = cssRgb(color).map((channel) =>
+    channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+  );
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+function cssContrast(foreground: string, background: string) {
+  const lighter = Math.max(cssLuminance(foreground), cssLuminance(background));
+  const darker = Math.min(cssLuminance(foreground), cssLuminance(background));
+  return (lighter + 0.05) / (darker + 0.05);
+}
 
 afterEach(() => vi.useRealTimers());
 const board = () => within(screen.getByRole("region", { name: "事项看板" }));
@@ -321,5 +357,72 @@ describe("UI-01 workbench", () => {
     fireEvent.click(screen.getByRole("button", { name: "我参与的" }));
     expect(current()).toHaveLength(1);
     expect(current()[0].textContent).toContain("信息支持");
+  });
+});
+
+describe("UI-01 workbench color contrast", () => {
+  const normalTextPairs = [
+    [".wb-shell", ".wb-shell"],
+    [".wb-brand > span", ".wb-brand > span"],
+    [".wb-sidebar button > small, .wb-sidebar kbd", ".wb-sidebar"],
+    [".wb-sidebar-group h2", ".wb-sidebar"],
+    [".wb-sidebar-group p", ".wb-sidebar"],
+    [".wb-profile small", ".wb-sidebar"],
+    [".wb-topbar", ".wb-shell"],
+    [".wb-demo", ".wb-demo"],
+    [".wb-page-heading h1", ".wb-shell"],
+    [".wb-page-heading p", ".wb-shell"],
+    [".wb-summary", ".wb-shell"],
+    [".wb-summary strong", ".wb-shell"],
+    [".wb-toolbar button[aria-pressed=\"true\"]", ".wb-toolbar button[aria-pressed=\"true\"]"],
+    [".wb-tools select", ".wb-tools select"],
+    [".wb-tools .wb-new", ".wb-tools .wb-new"],
+    [".wb-tools .wb-new", ".wb-tools .wb-new:hover"],
+    [".wb-column-heading h2", ".wb-column-heading h2"],
+    [".wb-group-1 h2", ".wb-group-1 h2"],
+    [".wb-group-2 h2", ".wb-group-2 h2"],
+    [".wb-group-3 h2", ".wb-group-3 h2"],
+  ] as const;
+  const surfacePairs = [
+    [".wb-column-heading > span", ".wb-group-0"],
+    [".wb-column-heading > span", ".wb-group-1"],
+    [".wb-column-heading > span", ".wb-group-2"],
+    [".wb-column-heading > span", ".wb-group-3"],
+    [".wb-card-type", ".wb-card"],
+    [".wb-card-description", ".wb-card"],
+    [".wb-card-status", ".wb-card"],
+    [".wb-card-person", ".wb-card"],
+    [".wb-column-empty", ".wb-group-0"],
+    [".wb-column-empty", ".wb-group-1"],
+    [".wb-column-empty", ".wb-group-2"],
+    [".wb-column-empty", ".wb-group-3"],
+    [".wb-list-row small", ".wb-list-row"],
+    [".wb-activity > p", ".wb-shell"],
+    [".wb-activity span, .wb-activity small", ".wb-shell"],
+    [".wb-detail p", ".wb-detail"],
+    [".wb-detail dt", ".wb-detail"],
+    [".wb-footer", ".wb-shell"],
+  ] as const;
+
+  it("keeps audited normal-sized text at WCAG AA contrast", () => {
+    for (const [foregroundSelector, backgroundSelector] of [...normalTextPairs, ...surfacePairs]) {
+      const ratio = cssContrast(cssDeclaration(foregroundSelector, "color"), cssDeclaration(backgroundSelector, "background"));
+      expect(ratio, `${foregroundSelector} on ${backgroundSelector}`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("keeps decorative UI glyphs above the non-text contrast threshold", () => {
+    const pairs = [
+      [".wb-sidebar nav button > span", ".wb-sidebar"],
+      [".wb-space-icon", ".wb-space-icon"],
+      [".wb-space-1", ".wb-space-1"],
+      [".wb-space-2", ".wb-space-2"],
+      [".wb-space-4", ".wb-space-4"],
+      [".wb-page-icon", ".wb-page-icon"],
+    ] as const;
+    for (const [foregroundSelector, backgroundSelector] of pairs) {
+      const ratio = cssContrast(cssDeclaration(foregroundSelector, "color"), cssDeclaration(backgroundSelector, "background"));
+      expect(ratio, `${foregroundSelector} on ${backgroundSelector}`).toBeGreaterThanOrEqual(3);
+    }
   });
 });
