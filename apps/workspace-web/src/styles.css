@@ -1,10 +1,10 @@
 :root {
   color: #1c2a2c;
-  background: #e8e9e4;
+  background: #fff;
   font-family: "Noto Sans CJK SC", "Microsoft YaHei UI", "PingFang SC", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --canvas: #e8e9e4;
+  --canvas: #fff;
   --paper: #f7f7f2;
   --paper-strong: #fffefa;
   --ink: #1c2a2c;

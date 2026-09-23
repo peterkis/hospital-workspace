@@ -16,7 +16,10 @@ const steps = [
 ] as const;
 function ticket() { return within(screen.getByRole("region", { name: "Synthetic Ticket experience" })); }
 function openTicket() {
-  fireEvent.click(screen.getByRole("button", { name: /IT Support/ }));
+  fireEvent.click(within(screen.getByRole("complementary", { name: "能力空间" })).getByRole("button", { name: /信息支持/ }));
+  fireEvent.click(screen.getByRole("button", { name: /演示工作站无法输出文档/ }));
+  // Settle the zero-delay selection event from focusing the new thread heading.
+  act(() => vi.advanceTimersByTime(0));
   return ticket();
 }
 function settle() { act(() => vi.advanceTimersByTime(SYNTHETIC_TICKET_RECEIPT_DELAY_MS)); }
