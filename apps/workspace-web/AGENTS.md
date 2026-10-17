@@ -15,9 +15,13 @@ backend, clinical pilot, or production capability.
 - Use the same immutable same-origin React/Vite build in browser and Tauri.
 - Keep Prisma, `pg`, Redis, repositories, service secrets, Node server modules,
   and Tauri internals out of frontend code.
-- Put approved HTTP transport only under `src/platform/api/`. Use registered,
-  literal same-origin targets. Capability, feature, and composition code must
-  not create direct or alternate transport.
+- Put browser-initiated HTTP clients only under `src/platform/api/`. Use
+  registered, literal same-origin targets. Capability, feature, and composition
+  code must not create direct or alternate browser transport.
+- Keep the fixed Node-side MVP-04 development proxy in `vite.config.ts`, as
+  defined by `docs/program/mvp/MVP-04-PROTOTYPE-BOUNDARY.yaml`. Its loopback
+  target, route prefix, credential filtering, and public-safe failures remain
+  bounded by that contract; this does not authorize arbitrary proxy targets.
 - One Workspace runtime owns the Collaboration SSE connection. Capability
   modules do not create their own live connection.
 - Do not persist sensitive or business content in URL parameters,
